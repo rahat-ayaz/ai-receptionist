@@ -39,19 +39,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   });
   const cat = nicheConfig(profile?.niche);
 
-  const NAV = [
-    { href: "/dashboard", label: "Overview", icon: LayoutGrid },
-    { href: "/dashboard/calls", label: "Calls", icon: Phone },
-    { href: "/dashboard/bookings", label: "Bookings", icon: CalendarCheck },
-    { href: "/dashboard/catalog", label: cat.navLabel, icon: NICHE_ICONS[cat.iconKey] ?? ListChecks },
-    { href: "/dashboard/knowledge", label: "Knowledge", icon: BookOpen },
-    { href: "/dashboard/sms-rules", label: "SMS Rules", icon: MessageSquareText },
-    { href: "/dashboard/settings", label: "Agent & Voice", icon: AudioLines },
-    { href: "/dashboard/templates", label: "Templates", icon: FileText },
-    { href: "/billing", label: "Billing", icon: CreditCard },
-    { href: "/dashboard/account", label: "Account", icon: UserCog },
-    { href: "/onboarding", label: "Setup", icon: Settings },
-  ];
+  const NAV = profile
+    ? [
+        { href: "/dashboard", label: "Overview", icon: LayoutGrid },
+        { href: "/dashboard/calls", label: "Calls", icon: Phone },
+        { href: "/dashboard/bookings", label: "Bookings", icon: CalendarCheck },
+        { href: "/dashboard/catalog", label: cat.navLabel, icon: NICHE_ICONS[cat.iconKey] ?? ListChecks },
+        { href: "/dashboard/knowledge", label: "Knowledge", icon: BookOpen },
+        { href: "/dashboard/sms-rules", label: "SMS Rules", icon: MessageSquareText },
+        { href: "/dashboard/settings", label: "Agent & Voice", icon: AudioLines },
+        { href: "/dashboard/templates", label: "Templates", icon: FileText },
+        { href: "/billing", label: "Billing", icon: CreditCard },
+        { href: "/dashboard/account", label: "Account", icon: UserCog },
+        { href: "/onboarding", label: "Setup", icon: Settings },
+      ]
+    : [
+        { href: "/onboarding", label: "Setup", icon: Settings },
+      ];
 
   return (
     <div className="flex min-h-screen">

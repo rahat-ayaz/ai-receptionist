@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { Phone, Clock, ShieldCheck, Activity, CheckCircle2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -109,6 +110,17 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ billing?: string }>;
 }) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) redirect("/login");
+
+  const profile = await prisma.businessProfile.findUnique({
+    where: { userId: session.user.id },
+  });
+
+  if (!profile) {
+    redirect("/onboarding");
+  }
+
   const d = await loadDashboard();
   const { billing } = await searchParams;
   const usage = d.usage ?? { used: 7, included: PLANS.STARTER.callCap, tier: "STARTER" as PlanTier };
