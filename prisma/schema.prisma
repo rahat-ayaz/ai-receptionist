@@ -1,0 +1,516 @@
+// ════════════════════════════════════════════════════════════════════════════
+//  CAPRO — AI Automated Receptionist Platform
+//  TorqAI Technologies Inc.  ·  PostgreSQL + Prisma ORM
+// ════════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── User & Auth Metadata ───────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  // Better Auth uses a boolean verification flag (set true after email OTP).
+  emailVerified Boolean   @default(false)
+
+  // Phone verification (Better Auth phoneNumber plugin).
+  phoneNumber         String?  @unique
+  phoneNumberVerified Boolean  @default(false)
+
+  // Stripe customer mapping (one Stripe customer per user)
+  stripeCustomerId String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ─── Auth relations (Better Auth) ───
+  sessions Session[]
+  accounts Account[]
+  passkeys Passkey[]
+
+  // ─── CAPRO relations ───
+  businessProfile BusinessProfile?
+  subscription    Subscription?
+
+  @@index([stripeCustomerId])
+}
+
+// ─── Auth: Session / Account / Verification / Passkey (Better Auth) ──────────
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  // Hashed credential password for email/password accounts.
+  password              String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String   @db.Text
+  expiresAt  DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+model Passkey {
+  id           String   @id @default(cuid())
+  name         String?
+  publicKey    String
+  credentialID String
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  aaguid       String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─── Business Profile ───────────────────────────────────────────────────────
+// The tenant's company record: contact strings + the unstructured "rule matrix"
+// context that Gemini wraps around every live conversation.
+
+model BusinessProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  name           String
+  corporatePhone String? // primary business line (E.164)
+  forwardingNumber String? // human fallback / TwiML <Dial> target
+  forwardingNumbers Json? // department routing map e.g. { "sales": "+15551000", "support": "+15552000" }
+  websiteUrl     String?
+  industry       String?
+  // Business niche — drives terminology + the dynamic catalog tab
+  // (RESTAURANT, MEDICAL, LEGAL, …). Validated in code against src/lib/niche.ts.
+  niche          String  @default("OTHER")
+  // Default Canadian tax jurisdiction (province/territory code, e.g. "ON").
+  province       String  @default("ON")
+  // Monotonic counter for generating per-tenant booking/order numbers.
+  bookingCounter Int     @default(0)
+
+  // Branding for outbound emails.
+  brandColor       String? // primary brand colour (hex)
+  brandAccentColor String? // accent colour (hex)
+  logoData         String? @db.Text // logo as a base64 data URL
+
+  // Free-form, unformatted description pasted during zero-friction onboarding.
+  rawContext String? @db.Text
+  // Gemini-distilled enterprise rule matrix (structured JSON).
+  ruleMatrix Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentSettings   AgentSettings?
+  knowledgeBlobs  KnowledgeBlob[]
+  callSessions    CallSession[]
+  smsTriggerRules SmsTriggerRule[]
+  twilioNumbers   ProvisionedNumber[]
+  customers       Customer[]
+  catalogItems    CatalogItem[]
+  bookings        Booking[]
+  messageTemplates MessageTemplate[]
+
+  @@index([userId])
+}
+
+// ─── Agent Settings ─────────────────────────────────────────────────────────
+
+model AgentSettings {
+  id                String @id @default(cuid())
+  businessProfileId String @unique
+
+  receptionistName String  @default("Ava")
+  // Vocal speed configuration: clamp 0.7 (slow) → 1.2 (fast)
+  voiceSpeed       Float   @default(1.0)
+  voiceId          String  @default("Puck") // Gemini native-audio voice
+  tone             AgentTone @default(PROFESSIONAL)
+  timezone         String  @default("America/Toronto")
+  greetingMessage  String  @db.Text @default("Thank you for calling. How can I help you today?")
+  recordCalls      Boolean @default(true)
+  maxCallSeconds   Int     @default(600)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+}
+
+// ─── Knowledge Blob ─────────────────────────────────────────────────────────
+
+model KnowledgeBlob {
+  id                String @id @default(cuid())
+  businessProfileId String
+
+  title  String
+  // Rich string data blob — pasted text, scraped page body, or document text.
+  data   String  @db.Text
+  source KbSource @default(MANUAL)
+  active Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId, active])
+}
+
+// ─── Call Session ───────────────────────────────────────────────────────────
+
+model CallSession {
+  id                String @id @default(cuid())
+  businessProfileId String
+
+  sessionKey   String   @unique @default(cuid()) // internal session identifier
+  twilioCallSid String  @unique                  // Twilio call ID
+  callerNumber String
+  // Linked customer (resolved by caller phone number), if known.
+  customerId   String?
+  direction    CallDirection @default(INBOUND)
+  status       CallStatus    @default(IN_PROGRESS)
+
+  // Complete text transcription, stored as an ordered array of turns:
+  // [{ role: "caller" | "agent", text: string, at: ISO8601 }]
+  transcript Json @default("[]")
+  // JSON semantic summary + extracted intent parameters.
+  intent     Json?
+  summary    String? @db.Text
+
+  // Runtime duration tracking (seconds).
+  durationSeconds Int? @default(0)
+  recordingUrl    String?
+
+  // Analytics tagging.
+  category  CallCategory  @default(UNCLASSIFIED)
+  sentiment CallSentiment @default(NEUTRAL)
+  tags      String[]      @default([])
+  isSpam    Boolean       @default(false)
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  customer        Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([businessProfileId, startedAt])
+  @@index([businessProfileId, category])
+  @@index([customerId])
+}
+
+// ─── SMS Trigger Rule ───────────────────────────────────────────────────────
+// "If customer queries X, dispatch an out-of-band SMS containing Y."
+
+model SmsTriggerRule {
+  id                String @id @default(cuid())
+  businessProfileId String
+
+  label          String
+  // Conditional keyword match vectors — any match fires the rule.
+  matchKeywords  String[] @default([])
+  // Payload text template (supports {{businessName}} / {{callerNumber}} tokens).
+  messageTemplate String  @db.Text
+  active         Boolean  @default(true)
+  fireOn         RuleFireTiming @default(DURING_CALL)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId, active])
+}
+
+// ─── Provisioned Telephony Numbers ──────────────────────────────────────────
+
+model ProvisionedNumber {
+  id                String @id @default(cuid())
+  businessProfileId String
+
+  phoneNumber String  @unique // E.164
+  twilioSid   String  @unique
+  region      String?
+  active      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId])
+}
+
+// ─── Subscription (Stripe 4-Tier Ledger) ────────────────────────────────────
+
+model Subscription {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  tier   PlanTier  @default(STARTER)
+  status SubStatus @default(INCOMPLETE)
+
+  stripeSubscriptionId String? @unique
+  stripePriceId        String?
+
+  // Metered usage window.
+  callsIncluded   Int      @default(30)
+  callsUsed       Int      @default(0)
+  periodStart     DateTime?
+  periodEnd       DateTime?
+  cancelAtPeriodEnd Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([stripeSubscriptionId])
+}
+
+// ─── Customer ───────────────────────────────────────────────────────────────
+// Phone number is the durable identity: when a caller rings back, we look them
+// up by `phone` and reattach all their bookings and history.
+
+model Customer {
+  id                String @id @default(cuid())
+  businessProfileId String
+
+  phone String  // E.164
+  name  String?
+  email String?
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  bookings        Booking[]
+  callSessions    CallSession[]
+
+  @@unique([businessProfileId, phone])
+  @@index([businessProfileId])
+}
+
+// ─── Catalog Item (menu / services with prices) ─────────────────────────────
+// Manually managed now; later auto-populated from uploaded documents.
+
+model CatalogItem {
+  id                String @id @default(cuid())
+  businessProfileId String
+
+  name        String
+  description String?
+  price       Float?  // base unit price in CAD (tax-exclusive); null for unpriced niches (doctors, attorneys)
+  category    String? // doubles as section / specialty / practice area per niche
+  active      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId, active])
+}
+
+// ─── Booking / Order ────────────────────────────────────────────────────────
+
+model Booking {
+  id                String @id @default(cuid())
+  businessProfileId String
+  customerId        String
+
+  // Human-friendly per-tenant reference, e.g. "ORD-0042" / "APT-0042".
+  reference String? @unique
+
+  type   BookingType   @default(ORDER)
+  status BookingStatus @default(PENDING)
+
+  // When the appointment / pickup / delivery is scheduled.
+  scheduledAt DateTime
+
+  // Ordered line items: [{ name, qty, unitPrice, lineTotal }]
+  lineItems Json   @default("[]")
+  subtotal  Float  @default(0)
+  taxAmount Float  @default(0)
+  total     Float  @default(0)
+  taxLabel  String @default("")   // e.g. "HST (13%)"
+  province  String @default("ON")
+
+  notes String? @db.Text
+
+  // Lifecycle timestamps for confirmation + reminder dispatch.
+  confirmationSentAt DateTime?
+  reminder24SentAt   DateTime?
+  reminder3SentAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  customer        Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId, scheduledAt])
+  @@index([businessProfileId, status])
+  @@index([customerId])
+}
+
+// ─── Message Templates (SMS / Email) ────────────────────────────────────────
+
+model MessageTemplate {
+  id                String @id @default(cuid())
+  businessProfileId String
+
+  channel MessageChannel
+  purpose TemplatePurpose @default(GENERAL)
+  name    String
+  subject String? // email only
+  body    String  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([businessProfileId, channel])
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum MessageChannel {
+  SMS
+  EMAIL
+}
+
+enum TemplatePurpose {
+  GENERAL
+  BOOKING_CONFIRMATION
+  BOOKING_REMINDER
+}
+
+enum BookingType {
+  APPOINTMENT
+  ORDER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  RESCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+enum AgentTone {
+  PROFESSIONAL
+  FRIENDLY
+  CONCISE
+  EMPATHETIC
+  ENERGETIC
+}
+
+enum KbSource {
+  MANUAL
+  PASTE
+  URL
+  DOCUMENT
+}
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CallStatus {
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  NO_ANSWER
+  BUSY
+}
+
+enum CallCategory {
+  UNCLASSIFIED
+  SALES
+  GENERAL_INFO
+  ISSUE
+  URGENT
+  SPAM
+}
+
+enum CallSentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  MIXED
+}
+
+enum RuleFireTiming {
+  DURING_CALL
+  AFTER_CALL
+}
+
+enum PlanTier {
+  STARTER
+  PREMIUM
+  PRO
+  SCALE
+}
+
+enum SubStatus {
+  INCOMPLETE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+}

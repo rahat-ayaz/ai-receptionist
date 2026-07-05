@@ -1,0 +1,298 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Trash2, Loader2, Upload, Link2, ClipboardType, Sparkles, X, Save } from "lucide-react";
+import { nicheConfig, NICHE_OPTIONS } from "@/lib/niche";
+
+interface Item {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number | null;
+  category: string | null;
+}
+interface Draft {
+  name: string;
+  price: number | null;
+  category: string | null;
+  description?: string | null;
+}
+
+type ImportMode = "file" | "url" | "text";
+
+export default function CatalogPage() {
+  const router = useRouter();
+  const [niche, setNiche] = useState("OTHER");
+  const cfg = nicheConfig(niche);
+
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Manual add
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [category, setCategory] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Import
+  const [mode, setMode] = useState<ImportMode>("file");
+  const [url, setUrl] = useState("");
+  const [pasteText, setPasteText] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [review, setReview] = useState<Draft[] | null>(null);
+  const [suggestedNiche, setSuggestedNiche] = useState<string | null>(null);
+  const [importNote, setImportNote] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function load() {
+    setLoading(true);
+    const res = await fetch("/api/catalog");
+    const data = (await res.json()) as { items: Item[]; niche: string };
+    setItems(data.items ?? []);
+    setNiche(data.niche ?? "OTHER");
+    setLoading(false);
+  }
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function changeNiche(value: string) {
+    setNiche(value);
+    await fetch("/api/profile/niche", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ niche: value }),
+    });
+    router.refresh(); // updates the sidebar tab label/icon
+  }
+
+  async function addManual() {
+    if (!name) return;
+    const p = parseFloat(price);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/catalog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, price: cfg.hasPrice && !isNaN(p) ? p : null, category }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (data.error) alert(data.error);
+      else {
+        setName(""); setPrice(""); setCategory("");
+        await load();
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove(id: string) {
+    await fetch(`/api/catalog/${id}`, { method: "DELETE" });
+    setItems((x) => x.filter((i) => i.id !== id));
+  }
+
+  // ── Import ──
+  async function runImport() {
+    setImporting(true);
+    setImportNote("");
+    setReview(null);
+    setSuggestedNiche(null);
+    try {
+      let res: Response;
+      if (mode === "file") {
+        const file = fileRef.current?.files?.[0];
+        if (!file) { setImporting(false); return; }
+        const fd = new FormData();
+        fd.append("file", file);
+        res = await fetch("/api/catalog/import", { method: "POST", body: fd });
+      } else {
+        res = await fetch("/api/catalog/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(mode === "url" ? { url } : { text: pasteText }),
+        });
+      }
+      const data = (await res.json()) as { items?: Draft[]; suggestedNiche?: string; usedAi?: boolean; message?: string; error?: string };
+      if (data.error) { setImportNote(data.error); return; }
+      setReview(data.items ?? []);
+      setSuggestedNiche(data.suggestedNiche ?? null);
+      setImportNote(
+        data.message ??
+          `Extracted ${data.items?.length ?? 0} ${cfg.itemNounPlural}${data.usedAi ? " (AI)" : " (best-effort — add a GEMINI_API_KEY for smarter extraction)"}. Review and save.`,
+      );
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function editReview(idx: number, patch: Partial<Draft>) {
+    setReview((r) => r!.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
+  }
+
+  async function saveReview() {
+    if (!review?.length) return;
+    setSaving(true);
+    try {
+      await fetch("/api/catalog/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: review }),
+      });
+      setReview(null);
+      setPasteText(""); setUrl("");
+      if (fileRef.current) fileRef.current.value = "";
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="px-5 py-6 sm:px-8">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{cfg.pageTitle}</h1>
+          <p className="mt-1 text-sm text-[var(--color-ink-dim)]">{cfg.pageDesc}</p>
+        </div>
+      </div>
+
+      {/* Import panel */}
+      <div className="tile mb-6 p-6">
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+          <Upload className="h-4 w-4 text-[var(--color-gold)]" /> Import {cfg.itemNounPlural}
+        </h2>
+        <div className="mb-4 flex gap-2">
+          {([["file", "Upload file", Upload], ["url", "From URL", Link2], ["text", "Paste text", ClipboardType]] as const).map(
+            ([m, label, Icon]) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs ${mode === m ? "border-[var(--color-gold)] text-[var(--color-gold-soft)]" : "border-[var(--color-slate-line)] text-[var(--color-ink-dim)] hover:text-[var(--color-ink)]"}`}
+              >
+                <Icon className="h-3.5 w-3.5" /> {label}
+              </button>
+            ),
+          )}
+        </div>
+
+        {mode === "file" && (
+          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.tsv,.txt,.md" className="fld" />
+        )}
+        {mode === "url" && (
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://yourbusiness.com/menu" className="fld" />
+        )}
+        {mode === "text" && (
+          <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={5} placeholder={`Paste your ${cfg.itemNounPlural} list…`} className="fld resize-y" />
+        )}
+
+        <div className="mt-2 text-xs text-[var(--color-ink-faint)]">
+          Accepts PDF, Word, Excel, CSV, text, or a website URL — up to 25MB.
+        </div>
+
+        <button onClick={runImport} disabled={importing} className="btn-gold mt-4 !w-auto px-4">
+          {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          Extract
+        </button>
+        {importNote && <p className="mt-3 text-sm text-[var(--color-gold-soft)]">{importNote}</p>}
+
+        {/* Suggested niche */}
+        {suggestedNiche && suggestedNiche !== niche && (
+          <p className="mt-2 text-sm">
+            Detected business type: <strong>{nicheConfig(suggestedNiche).businessLabel}</strong>{" "}
+            <button onClick={() => changeNiche(suggestedNiche)} className="text-[var(--color-gold)] underline">apply</button>
+          </p>
+        )}
+
+        {/* Review table */}
+        {review && review.length > 0 && (
+          <div className="mt-5 rounded-lg border border-[var(--color-slate-line)] p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+              Review {review.length} {cfg.itemNounPlural}
+            </p>
+            <div className="space-y-2">
+              {review.map((d, idx) => (
+                <div key={idx} className="grid grid-cols-[2fr_1fr_auto] gap-2">
+                  <input value={d.name} onChange={(e) => editReview(idx, { name: e.target.value })} className="fld !py-1.5" />
+                  {cfg.hasPrice ? (
+                    <input
+                      value={d.price ?? ""}
+                      onChange={(e) => editReview(idx, { price: e.target.value === "" ? null : parseFloat(e.target.value) })}
+                      placeholder="Price"
+                      inputMode="decimal"
+                      className="fld !py-1.5"
+                    />
+                  ) : (
+                    <input value={d.category ?? ""} onChange={(e) => editReview(idx, { category: e.target.value })} placeholder={cfg.categoryLabel} className="fld !py-1.5" />
+                  )}
+                  <button onClick={() => setReview((r) => r!.filter((_, i) => i !== idx))} className="px-2 text-[var(--color-ink-faint)] hover:text-red-400">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button onClick={saveReview} disabled={saving} className="btn-gold !w-auto px-4">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save {review.length} {cfg.itemNounPlural}
+              </button>
+              <button onClick={() => setReview(null)} className="btn-outline !w-auto px-4">Discard</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Manual add */}
+      <div className="tile mb-8 p-6">
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+          <Plus className="h-4 w-4 text-[var(--color-gold)]" /> Add {cfg.itemNoun}
+        </h2>
+        <div className={`grid gap-4 ${cfg.hasPrice ? "sm:grid-cols-[2fr_1fr_1fr]" : "sm:grid-cols-2"}`}>
+          <Field label="Name"><input value={name} onChange={(e) => setName(e.target.value)} placeholder={cfg.niche === "MEDICAL" ? "Dr. Jane Smith" : cfg.niche === "LEGAL" ? "Jane Smith" : "Large Pizza"} className="fld" /></Field>
+          {cfg.hasPrice && <Field label="Price (CAD)"><input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="15.00" inputMode="decimal" className="fld" /></Field>}
+          <Field label={cfg.categoryLabel}><input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={cfg.niche === "MEDICAL" ? "Cardiology" : cfg.niche === "LEGAL" ? "Family law" : "Food"} className="fld" /></Field>
+        </div>
+        <button onClick={addManual} disabled={saving} className="btn-gold mt-5 !w-auto px-4">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          Add {cfg.itemNoun}
+        </button>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <p className="text-sm text-[var(--color-ink-dim)]">Loading…</p>
+      ) : items.length === 0 ? (
+        <div className="tile p-10 text-center text-sm text-[var(--color-ink-dim)]">
+          No {cfg.itemNounPlural} yet. Import from a document/URL or add manually above.
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((i) => (
+            <div key={i.id} className="tile tile-hover flex items-center justify-between p-4">
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{i.name}</p>
+                {i.category && <p className="mt-0.5 text-[11px] uppercase tracking-wide text-[var(--color-ink-faint)]">{i.category}</p>}
+              </div>
+              <div className="flex items-center gap-3">
+                {i.price != null && <span className="font-semibold text-[var(--color-gold-soft)]">${i.price.toFixed(2)}</span>}
+                <button onClick={() => remove(i.id)} className="text-[var(--color-ink-faint)] hover:text-red-400">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-medium text-[var(--color-ink-dim)]">{label}</span>
+      {children}
+    </label>
+  );
+}

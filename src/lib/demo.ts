@@ -1,0 +1,87 @@
+import type { CallRow } from "@/components/dashboard/CallsTable";
+
+// Representative sample data so the dashboard renders before a database and
+// live calls exist. Replaced automatically once real CallSessions land.
+export const DEMO_CALLS: CallRow[] = [
+  {
+    id: "demo-1",
+    callerNumber: "+1 (514) 555-0182",
+    startedAt: new Date(Date.now() - 1000 * 60 * 14).toISOString(),
+    durationSeconds: 184,
+    category: "SALES",
+    tags: ["pricing", "demo-request", "enterprise"],
+    isSpam: false,
+    status: "COMPLETED",
+    summary: "Caller asked about Pro-tier pricing and requested a product demo for a 40-seat team.",
+    sentiment: "POSITIVE",
+    recordingUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    transcript: [
+      { role: "agent", text: "Thank you for calling TorqAI. How can I help you today?", at: "" },
+      { role: "caller", text: "Hi, I'm comparing receptionist tools — what does your Pro plan include?", at: "" },
+      { role: "agent", text: "Pro is $159.95 a month and covers 300 calls, with overage at 75 cents each. Want me to text you a demo link?", at: "" },
+      { role: "caller", text: "Yes please, that'd be great.", at: "" },
+      { role: "agent", text: "Done — it's on its way to this number. Anything else?", at: "" },
+    ],
+  },
+  {
+    id: "demo-2",
+    callerNumber: "+1 (438) 555-0199",
+    startedAt: new Date(Date.now() - 1000 * 60 * 73).toISOString(),
+    durationSeconds: 92,
+    category: "URGENT",
+    tags: ["outage", "callback"],
+    isSpam: false,
+    status: "COMPLETED",
+    summary: "Existing customer reported a service outage and requested an urgent callback.",
+    sentiment: "NEGATIVE",
+    recordingUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+    transcript: [
+      { role: "agent", text: "Thanks for calling. How can I help?", at: "" },
+      { role: "caller", text: "My line's been down for an hour, I need someone now.", at: "" },
+      { role: "agent", text: "I'm flagging this as urgent and notifying the on-call team right away.", at: "" },
+    ],
+  },
+  {
+    id: "demo-3",
+    callerNumber: "+1 (800) 555-0147",
+    startedAt: new Date(Date.now() - 1000 * 60 * 220).toISOString(),
+    durationSeconds: 11,
+    category: "SPAM",
+    tags: ["robocall"],
+    isSpam: true,
+    status: "COMPLETED",
+    summary: "Detected as an automated robocall and terminated.",
+    sentiment: "NEUTRAL",
+    recordingUrl: null,
+    transcript: [
+      { role: "agent", text: "Thank you for calling. How can I help you today?", at: "" },
+      { role: "caller", text: "Congratulations! You've been selected for a free cruise...", at: "" },
+    ],
+  },
+  {
+    id: "demo-4",
+    callerNumber: "+1 (450) 555-0123",
+    startedAt: new Date(Date.now() - 1000 * 60 * 300).toISOString(),
+    durationSeconds: 138,
+    category: "GENERAL_INFO",
+    tags: ["hours", "location"],
+    isSpam: false,
+    status: "COMPLETED",
+    summary: "Caller asked for business hours and address; provided both.",
+    sentiment: "POSITIVE",
+    recordingUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+    transcript: [
+      { role: "agent", text: "Thanks for calling, how can I help?", at: "" },
+      { role: "caller", text: "Are you open on Saturdays?", at: "" },
+      { role: "agent", text: "Yes — Saturdays from 9 to 4. I can text you our address too if you'd like.", at: "" },
+    ],
+  },
+];
+
+export const DEMO_STATS = {
+  businessName: "TorqAI Technologies (Demo)",
+  totalCalls: DEMO_CALLS.length,
+  avgDuration: Math.round(DEMO_CALLS.reduce((a, c) => a + c.durationSeconds, 0) / DEMO_CALLS.length),
+  spamPct: Math.round((DEMO_CALLS.filter((c) => c.isSpam).length / DEMO_CALLS.length) * 100),
+  activeNow: 0,
+};
