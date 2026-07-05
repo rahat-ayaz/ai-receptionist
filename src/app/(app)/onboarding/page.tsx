@@ -77,6 +77,7 @@ export default function OnboardingPage() {
               onChange={(e) => setPhoneNumber(e.target.value)}
               className="ob-input cursor-pointer"
             >
+              <option value="+16476997982">+1 (647) 699-7982 (Purchased Twilio Number)</option>
               <option value="+18883210918">+1 (888) 321-0918</option>
               <option value="+18885550199">+1 (888) 555-0199</option>
               <option value="+18884567890">+1 (888) 456-7890</option>
