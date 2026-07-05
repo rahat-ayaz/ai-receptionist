@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
-import { sendSmsCode } from "@/lib/twilio";
+import { sendSmsCode, sendSms } from "@/lib/twilio";
 import { priceOrder, type LineItem, type LineItemInput } from "@/lib/pricing";
 import { normalizeProvince } from "@/lib/tax";
 import { applyTokens, renderBrandedEmail } from "@/lib/branding";
@@ -260,3 +260,94 @@ export async function sendBookingConfirmation(
     },
   });
 }
+
+/** Send a booking reminder (24h or 3h before) by email + SMS. */
+export async function sendBookingReminder(
+  id: string,
+  type: "24h" | "3h",
+): Promise<Booking | null> {
+  const booking = await prisma.booking.findFirst({
+    where: { id },
+    include: {
+      customer: true,
+      businessProfile: {
+        include: {
+          twilioNumbers: { where: { active: true }, select: { phoneNumber: true }, take: 1 },
+        },
+      },
+    },
+  });
+  if (!booking) return null;
+
+  const bp = booking.businessProfile;
+  const items = (booking.lineItems as unknown as LineItem[]) ?? [];
+  const noun = booking.type === "ORDER" ? "order" : "appointment";
+  const when = new Date(booking.scheduledAt).toLocaleString("en-CA", {
+    timeZone: "America/Toronto",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  const vars: Record<string, string> = {
+    businessName: bp.name,
+    customerName: booking.customer.name || "there",
+    reference: booking.reference ?? "",
+    type: noun,
+    when,
+    items: items.map((i) => `${i.qty}× ${i.name}`).join(", "),
+    subtotal: money(booking.subtotal),
+    tax: money(booking.taxAmount),
+    taxLabel: booking.taxLabel,
+    total: money(booking.total),
+  };
+
+  // Use the tenant's designated reminder templates if present, else defaults.
+  const templates = await prisma.messageTemplate.findMany({
+    where: { businessProfileId: bp.id, purpose: "BOOKING_REMINDER" },
+  });
+  const emailTpl = templates.find((t) => t.channel === "EMAIL");
+  const smsTpl = templates.find((t) => t.channel === "SMS");
+
+  const fallback = formatBookingMessage(booking, bp.name, "reminder");
+
+  // Email — branded HTML
+  if (booking.customer.email) {
+    const defaultSubject = `Reminder: Your ${bp.name} ${noun} is coming up`;
+    const subject = emailTpl?.subject ? applyTokens(emailTpl.subject, vars) : defaultSubject;
+    const bodyText = emailTpl ? applyTokens(emailTpl.body, vars) : fallback;
+    const emailItems = ((booking.lineItems as unknown as { name: string; qty: number; unitPrice: number; lineTotal: number }[]) || []);
+
+    await sendEmail({
+      to: booking.customer.email,
+      subject,
+      text: bodyText.replace(/\\n/g, "\n"),
+      html: renderBrandedEmail({
+        brand: bp,
+        businessName: bp.name,
+        heading: subject,
+        body: bodyText,
+        items: emailItems,
+        subtotal: booking.subtotal,
+        taxAmount: booking.taxAmount,
+        taxLabel: booking.taxLabel,
+        total: booking.total
+      }),
+    });
+  }
+
+  // SMS — dynamic sender
+  const smsBody = smsTpl ? applyTokens(smsTpl.body, vars) : fallback;
+  const fromOverride = bp.twilioNumbers[0]?.phoneNumber ?? undefined;
+  await sendSms(booking.customer.phone, smsBody.replace(/\\n/g, "\n"), fromOverride);
+
+  return prisma.booking.update({
+    where: { id },
+    data: {
+      ...(type === "24h" ? { reminder24SentAt: new Date() } : { reminder3SentAt: new Date() }),
+    },
+  });
+}
+
