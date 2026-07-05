@@ -62,6 +62,13 @@ export const auth = betterAuth({
         text: `Reset your password using this link:\n${url}`,
       });
     },
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendEmail({
+        to: user.email,
+        subject: "Verify your CAPRO email",
+        text: `Verify your email using this link:\n${url}`,
+      });
+    },
   },
 
   socialProviders: socialProviders(),
