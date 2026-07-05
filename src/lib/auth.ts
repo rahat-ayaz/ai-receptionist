@@ -55,14 +55,26 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
-    sendResetPassword: async ({ user, url }) => {
+    sendResetPassword: async ({
+      user,
+      url,
+    }: {
+      user: { email: string };
+      url: string;
+    }) => {
       await sendEmail({
         to: user.email,
         subject: "Reset your CAPRO password",
         text: `Reset your password using this link:\n${url}`,
       });
     },
-    sendVerificationEmail: async ({ user, url }) => {
+    sendVerificationEmail: async ({
+      user,
+      url,
+    }: {
+      user: { email: string };
+      url: string;
+    }) => {
       await sendEmail({
         to: user.email,
         subject: "Verify your CAPRO email",
