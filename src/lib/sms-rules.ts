@@ -36,6 +36,14 @@ export async function dispatchTriggerSms(args: {
     where: { businessProfileId: args.businessProfileId, active: true, fireOn: args.fireOn },
   });
 
+  const profile = await prisma.businessProfile.findUnique({
+    where: { id: args.businessProfileId },
+    select: {
+      twilioNumbers: { where: { active: true }, select: { phoneNumber: true }, take: 1 },
+    },
+  });
+  const fromOverride = profile?.twilioNumbers[0]?.phoneNumber ?? undefined;
+
   const matched = matchRules(args.utterance, rules);
   let sent = 0;
 
@@ -45,7 +53,7 @@ export async function dispatchTriggerSms(args: {
       callerNumber: args.callerNumber,
     });
     try {
-      const sid = await sendSms(args.callerNumber, body);
+      const sid = await sendSms(args.callerNumber, body, fromOverride);
       if (sid) sent += 1;
     } catch (err) {
       console.error(`[sms-rules] failed to dispatch rule ${rule.id}:`, err);

@@ -143,10 +143,10 @@ export function buildRejectTwiML(message: string, voiceId?: string | null, voice
 }
 
 /** Dispatch an out-of-band SMS (used by trigger rules). */
-export async function sendSms(to: string, body: string): Promise<string | null> {
-  const from = process.env.TWILIO_SMS_FROM;
+export async function sendSms(to: string, body: string, fromOverride?: string): Promise<string | null> {
+  const from = fromOverride || process.env.TWILIO_SMS_FROM;
   if (!from) {
-    console.warn("[twilio] TWILIO_SMS_FROM not set — skipping SMS dispatch.");
+    console.warn("[twilio] No source phone number available (TWILIO_SMS_FROM or provisioned number missing) — skipping SMS dispatch.");
     return null;
   }
   const msg = await twilioClient.messages.create({ to, from, body });
