@@ -3,12 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Loader2, ArrowRight } from "lucide-react";
+import { NICHE_OPTIONS } from "@/lib/niche";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [businessName, setBusinessName] = useState("");
   const [input, setInput] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("+18883210918");
+  const [niche, setNiche] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return new URLSearchParams(window.location.search).get("niche") || "RESTAURANT";
+    }
+    return "RESTAURANT";
+  });
   const [status, setStatus] = useState<"idle" | "working" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
 
@@ -17,7 +24,6 @@ export default function OnboardingPage() {
     setStatus("working");
     setMessage("Reading your business and building the rule matrix…");
     try {
-      const niche = new URLSearchParams(window.location.search).get("niche") ?? undefined;
       const res = await fetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -75,6 +81,19 @@ export default function OnboardingPage() {
               <option value="+18885550199">+1 (888) 555-0199</option>
               <option value="+18884567890">+1 (888) 456-7890</option>
               <option value="+18887890123">+1 (888) 789-0123</option>
+            </select>
+          </label>
+
+          <label className="mt-4 block">
+            <span className="mb-1.5 block text-xs font-medium text-[var(--color-ink-dim)]">What kind of business is this?</span>
+            <select
+              value={niche}
+              onChange={(e) => setNiche(e.target.value)}
+              className="ob-input cursor-pointer"
+            >
+              {NICHE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
             </select>
           </label>
 
