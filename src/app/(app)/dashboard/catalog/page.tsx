@@ -288,9 +288,9 @@ export default function CatalogPage() {
           <Plus className="h-4 w-4 text-[var(--color-gold)]" /> Add {cfg.itemNoun}
         </h2>
         <div className={`grid gap-4 ${cfg.hasPrice ? "sm:grid-cols-[2fr_1fr_1fr]" : "sm:grid-cols-2"}`}>
-          <Field label="Name"><input value={name} onChange={(e) => setName(e.target.value)} placeholder={cfg.niche === "MEDICAL" ? "Dr. Jane Smith" : cfg.niche === "LEGAL" ? "Jane Smith" : "Large Pizza"} className="fld" /></Field>
+          <Field label="Name"><input value={name} onChange={(e) => setName(e.target.value)} placeholder={cfg.namePlaceholder} className="fld" /></Field>
           {cfg.hasPrice && <Field label="Price (CAD)"><input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="15.00" inputMode="decimal" className="fld" /></Field>}
-          <Field label={cfg.categoryLabel}><input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={cfg.niche === "MEDICAL" ? "Cardiology" : cfg.niche === "LEGAL" ? "Family law" : "Food"} className="fld" /></Field>
+          <Field label={cfg.categoryLabel}><input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={cfg.categoryPlaceholder} className="fld" /></Field>
         </div>
         <button onClick={addManual} disabled={saving} className="btn-gold mt-5 !w-auto px-4">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
