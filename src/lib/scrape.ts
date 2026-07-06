@@ -14,7 +14,8 @@ export function htmlToText(html: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\r?\n\s*\r?\n+/g, "\n\n")
     .trim()
     .slice(0, 40000);
 }

@@ -110,7 +110,7 @@ function lineHeuristic(text: string, hasPrice: boolean): ExtractedItem[] {
       if (name) items.push({ name, price: toPrice(m[1]) });
     } else if (!hasPrice) {
       // Unpriced niche (doctors/attorneys): keep "Dr. X — Specialty"-style lines.
-      if (/^(dr\.?|doctor|atty\.?|attorney|mr\.?|ms\.?|mrs\.?|prof\.?)/i.test(line) || /[—\-–:|]/.test(line)) {
+      if (/^(dr\.?|doctor|atty\.?|attorney|lawyer|consultant|mr\.?|ms\.?|mrs\.?|prof\.?)\s+/i.test(line)) {
         const [namePart, catPart] = line.split(/[—\-–:|]/);
         const name = namePart.trim();
         if (name.length >= 2) items.push({ name, category: catPart?.trim() || null });
