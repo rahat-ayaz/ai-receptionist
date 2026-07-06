@@ -89,7 +89,10 @@ export default function BookingsPage() {
     const cd = (await c.json()) as { items: CatalogItem[]; niche?: string };
     setBookings(bd.bookings ?? []);
     setCatalog(cd.items ?? []);
-    setNiche(cd.niche ?? "OTHER");
+    const userNiche = cd.niche ?? "OTHER";
+    setNiche(userNiche);
+    // Default to APPOINTMENT (Booking) if niche doesn't carry prices, else ORDER
+    setType(nicheConfig(userNiche).hasPrice ? "ORDER" : "APPOINTMENT");
     setLoading(false);
   }
   useEffect(() => {
@@ -174,8 +177,17 @@ export default function BookingsPage() {
           <Field label="Email (optional)"><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@email.com" className="fld" /></Field>
           <Field label="Type">
             <select value={type} onChange={(e) => setType(e.target.value as "ORDER" | "APPOINTMENT")} className="fld">
-              <option value="ORDER">Order</option>
-              <option value="APPOINTMENT">Appointment</option>
+              {cfg.hasPrice ? (
+                <>
+                  <option value="ORDER">Order</option>
+                  <option value="APPOINTMENT">Appointment</option>
+                </>
+              ) : (
+                <>
+                  <option value="APPOINTMENT">Booking</option>
+                  <option value="ORDER">Order</option>
+                </>
+              )}
             </select>
           </Field>
           <Field label="Date &amp; time"><input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className="fld" /></Field>
@@ -264,8 +276,17 @@ export default function BookingsPage() {
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Type">
                       <select value={editType} onChange={(e) => setEditType(e.target.value as "ORDER" | "APPOINTMENT")} className="fld">
-                        <option value="ORDER">Order</option>
-                        <option value="APPOINTMENT">Appointment</option>
+                        {cfg.hasPrice ? (
+                          <>
+                            <option value="ORDER">Order</option>
+                            <option value="APPOINTMENT">Appointment</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="APPOINTMENT">Booking</option>
+                            <option value="ORDER">Order</option>
+                          </>
+                        )}
                       </select>
                     </Field>
                     <Field label="Date &amp; time">
@@ -351,7 +372,7 @@ export default function BookingsPage() {
                         )}
                         {b.customer.name || b.customer.phone}
                         <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLE[b.status]}`}>{b.status}</span>
-                        <span className="rounded-full border border-[var(--color-slate-line)] px-2 py-0.5 text-[11px] text-[var(--color-ink-dim)]">{b.type}</span>
+                        <span className="rounded-full border border-[var(--color-slate-line)] px-2 py-0.5 text-[11px] text-[var(--color-ink-dim)]">{getFriendlyType(b.type, niche)}</span>
                       </div>
                       <p className="mt-1 text-sm text-[var(--color-ink-dim)]">
                         {b.customer.phone} · {fmtWhen(b.scheduledAt)}
@@ -455,4 +476,12 @@ function getDropdownPlaceholder(niche: string) {
     default:
       return "Select item from the catalog…";
   }
+}
+
+function getFriendlyType(type: "ORDER" | "APPOINTMENT", niche: string) {
+  const hasPrice = nicheConfig(niche).hasPrice;
+  if (type === "APPOINTMENT") {
+    return hasPrice ? "Appointment" : "Booking";
+  }
+  return "Order";
 }
