@@ -8,6 +8,11 @@ export const metadata: Metadata = {
   title: "CAPRO · AI Automated Receptionist — TorqAI",
   description:
     "CAPRO by TorqAI Technologies — an enterprise-grade AI receptionist that answers every call, 24/7.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
