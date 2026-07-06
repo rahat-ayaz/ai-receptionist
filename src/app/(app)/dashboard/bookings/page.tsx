@@ -244,7 +244,7 @@ export default function BookingsPage() {
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Look up by order # (e.g. ORD-0001), name, or phone…"
+        placeholder={cfg.hasPrice ? "Look up by order # (e.g. ORD-0001), name, or phone…" : "Look up by booking # (e.g. BKP-0001), name, or phone…"}
         className="fld mb-4"
       />
 
