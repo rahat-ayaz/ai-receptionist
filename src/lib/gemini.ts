@@ -5,7 +5,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 export const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
 
 export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-export const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || "gemini-2.5-flash-preview-tts";
+export const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || "gemini-3.1-flash-tts-preview";
 
 // ─── Text-to-speech (Gemini native voices) ──────────────────────────────────
 
