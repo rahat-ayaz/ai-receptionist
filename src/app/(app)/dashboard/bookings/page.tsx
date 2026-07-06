@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, CalendarCheck, Loader2, CheckCircle2, X, Clock } from "lucide-react";
 import { PROVINCES } from "@/lib/tax";
 import { priceOrder, summarizeOrder, type LineItemInput } from "@/lib/pricing";
+import { nicheConfig } from "@/lib/niche";
 
 interface Customer {
   id: string;
@@ -48,9 +49,12 @@ const fmtWhen = (iso: string) =>
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [niche, setNiche] = useState("OTHER");
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"ALL" | Booking["status"]>("ALL");
   const [search, setSearch] = useState("");
+
+  const cfg = nicheConfig(niche);
 
   // Create-form state
   const [phone, setPhone] = useState("");
@@ -82,9 +86,10 @@ export default function BookingsPage() {
     setLoading(true);
     const [b, c] = await Promise.all([fetch("/api/bookings"), fetch("/api/catalog")]);
     const bd = (await b.json()) as { bookings: Booking[] };
-    const cd = (await c.json()) as { items: CatalogItem[] };
+    const cd = (await c.json()) as { items: CatalogItem[]; niche?: string };
     setBookings(bd.bookings ?? []);
     setCatalog(cd.items ?? []);
+    setNiche(cd.niche ?? "OTHER");
     setLoading(false);
   }
   useEffect(() => {
@@ -184,14 +189,14 @@ export default function BookingsPage() {
         {/* Item picker */}
         <div className="mt-4 grid gap-3 sm:grid-cols-[3fr_1fr_auto]">
           <select value={pickId} onChange={(e) => setPickId(e.target.value)} className="fld">
-            <option value="">Add item from menu…</option>
+            <option value="">{getDropdownPlaceholder(niche)}</option>
             {catalog.map((c) => <option key={c.id} value={c.id}>{c.name}{c.price != null ? ` — $${c.price.toFixed(2)}` : ""}</option>)}
           </select>
           <input value={pickQty} onChange={(e) => setPickQty(e.target.value)} inputMode="numeric" className="fld" placeholder="Qty" />
           <button onClick={addToCart} disabled={!pickId} className="btn-outline !w-auto px-4">Add</button>
         </div>
         {catalog.length === 0 && (
-          <p className="mt-2 text-xs text-[var(--color-ink-faint)]">No menu items yet — add some under “Menu”.</p>
+          <p className="mt-2 text-xs text-[var(--color-ink-faint)]">No {cfg.itemNounPlural} yet — add some under “{cfg.navLabel}”.</p>
         )}
 
         {/* Cart + live totals */}
@@ -281,7 +286,7 @@ export default function BookingsPage() {
                     <h4 className="text-xs font-semibold mb-2">Edit Order Items</h4>
                     <div className="grid gap-3 sm:grid-cols-[3fr_1fr_auto]">
                       <select value={editPickId} onChange={(e) => setEditPickId(e.target.value)} className="fld">
-                        <option value="">Add item from menu…</option>
+                        <option value="">{getDropdownPlaceholder(niche)}</option>
                         {catalog.map((c) => <option key={c.id} value={c.id}>{c.name}{c.price != null ? ` — $${c.price.toFixed(2)}` : ""}</option>)}
                       </select>
                       <input value={editPickQty} onChange={(e) => setEditPickQty(e.target.value)} inputMode="numeric" className="fld" placeholder="Qty" />
@@ -428,4 +433,26 @@ function ActionBtn({ children, onClick, busy, danger }: { children: React.ReactN
       {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : children}
     </button>
   );
+}
+
+function getDropdownPlaceholder(niche: string) {
+  switch (niche) {
+    case "DENTAL":
+      return "Select dentist from the list below…";
+    case "MEDICAL":
+      return "Select doctor from the list below…";
+    case "LEGAL":
+      return "Select attorney from the list below…";
+    case "RESTAURANT":
+      return "Select item from the menu…";
+    case "SALON":
+    case "AUTOMOTIVE":
+      return "Select service from the menu…";
+    case "REAL_ESTATE":
+      return "Select listing from the list below…";
+    case "RETAIL":
+      return "Select product from the menu…";
+    default:
+      return "Select item from the catalog…";
+  }
 }
