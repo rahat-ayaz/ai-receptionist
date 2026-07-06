@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Loader2, Upload, Link2, ClipboardType, Sparkles, X, Save } from "lucide-react";
+import { Plus, Trash2, Loader2, Upload, Link2, ClipboardType, Sparkles, X, Save, Pencil } from "lucide-react";
 import { nicheConfig, NICHE_OPTIONS } from "@/lib/niche";
 
 interface Item {
@@ -34,6 +34,12 @@ export default function CatalogPage() {
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Edit item
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editCategory, setEditCategory] = useState("");
 
   // Import
   const [mode, setMode] = useState<ImportMode>("file");
@@ -91,6 +97,39 @@ export default function CatalogPage() {
   async function remove(id: string) {
     await fetch(`/api/catalog/${id}`, { method: "DELETE" });
     setItems((x) => x.filter((i) => i.id !== id));
+  }
+
+  function startEdit(item: Item) {
+    setEditingId(item.id);
+    setEditName(item.name);
+    setEditPrice(item.price != null ? item.price.toString() : "");
+    setEditCategory(item.category || "");
+  }
+
+  async function saveEdit(id: string) {
+    if (!editName) return;
+    const p = parseFloat(editPrice);
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/catalog/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName,
+          price: cfg.hasPrice && !isNaN(p) ? p : null,
+          category: editCategory,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (data.error) {
+        alert(data.error);
+      } else {
+        setEditingId(null);
+        await load();
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   // ── Import ──
@@ -268,20 +307,78 @@ export default function CatalogPage() {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((i) => (
-            <div key={i.id} className="tile tile-hover flex items-center justify-between p-4">
-              <div className="min-w-0">
-                <p className="truncate font-semibold">{i.name}</p>
-                {i.category && <p className="mt-0.5 text-[11px] uppercase tracking-wide text-[var(--color-ink-faint)]">{i.category}</p>}
+          {items.map((i) => {
+            const isEditing = editingId === i.id;
+            if (isEditing) {
+              return (
+                <div key={i.id} className="tile p-4 space-y-3">
+                  <div className="space-y-2">
+                    <div>
+                      <span className="block mb-1 text-[10px] uppercase tracking-wider font-semibold text-[var(--color-ink-faint)]">Name</span>
+                      <input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="fld !py-1.5 !px-2.5 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <span className="block mb-1 text-[10px] uppercase tracking-wider font-semibold text-[var(--color-ink-faint)]">{cfg.categoryLabel}</span>
+                      <input
+                        value={editCategory}
+                        onChange={(e) => setEditCategory(e.target.value)}
+                        className="fld !py-1.5 !px-2.5 text-sm"
+                      />
+                    </div>
+                    {cfg.hasPrice && (
+                      <div>
+                        <span className="block mb-1 text-[10px] uppercase tracking-wider font-semibold text-[var(--color-ink-faint)]">Price (CAD)</span>
+                        <input
+                          value={editPrice}
+                          onChange={(e) => setEditPrice(e.target.value)}
+                          placeholder="0.00"
+                          inputMode="decimal"
+                          className="fld !py-1.5 !px-2.5 text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => saveEdit(i.id)}
+                      disabled={saving}
+                      className="inline-flex items-center gap-1 rounded bg-[var(--color-gold)] px-2.5 py-1 text-xs font-semibold text-[var(--color-midnight)] hover:brightness-110 disabled:opacity-75"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="inline-flex items-center gap-1 rounded border border-[var(--color-slate-line)] px-2.5 py-1 text-xs font-medium text-[var(--color-ink-dim)] hover:text-[var(--color-ink)]"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div key={i.id} className="tile tile-hover flex items-center justify-between p-4">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{i.name}</p>
+                  {i.category && <p className="mt-0.5 text-[11px] uppercase tracking-wide text-[var(--color-ink-faint)]">{i.category}</p>}
+                </div>
+                <div className="flex items-center gap-3">
+                  {i.price != null && <span className="font-semibold text-[var(--color-gold-soft)]">${i.price.toFixed(2)}</span>}
+                  <button onClick={() => startEdit(i)} className="text-[var(--color-ink-faint)] hover:text-[var(--color-gold)]">
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => remove(i.id)} className="text-[var(--color-ink-faint)] hover:text-red-400">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                {i.price != null && <span className="font-semibold text-[var(--color-gold-soft)]">${i.price.toFixed(2)}</span>}
-                <button onClick={() => remove(i.id)} className="text-[var(--color-ink-faint)] hover:text-red-400">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
