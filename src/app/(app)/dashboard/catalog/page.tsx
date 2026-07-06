@@ -70,11 +70,16 @@ export default function CatalogPage() {
 
   async function load() {
     setLoading(true);
-    const res = await fetch("/api/catalog");
-    const data = (await res.json()) as { items: Item[]; niche: string };
-    setItems(data.items ?? []);
-    setNiche(data.niche ?? "OTHER");
-    setLoading(false);
+    try {
+      const res = await fetch("/api/catalog");
+      const data = (await res.json()) as { items: Item[]; niche: string };
+      setItems(data.items ?? []);
+      setNiche(data.niche ?? "OTHER");
+    } catch (err) {
+      console.error("Failed to load catalog items:", err);
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => {
     void load();
