@@ -57,14 +57,6 @@ interface GreetingOptions {
 export function buildGreetingTwiML(opts: GreetingOptions): string {
   const vr = new VoiceResponse();
 
-  if (opts.record) {
-    vr.record({
-      recordingStatusCallback: `${opts.actionUrl}/recording`,
-      playBeep: false,
-      trim: "trim-silence",
-    });
-  }
-
   const gather = vr.gather({
     input: ["speech"],
     action: opts.actionUrl,

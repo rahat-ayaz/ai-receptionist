@@ -7,6 +7,7 @@ import {
   buildForwardTwiML,
   buildRejectTwiML,
   buildStreamTwiML,
+  twilioClient,
 } from "@/lib/twilio";
 import {
   buildSystemPrompt,
@@ -125,12 +126,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (settings?.recordCalls) {
+      await twilioClient.calls(callSid).recordings.create({
+        recordingStatusCallback: `${actionUrl}/recording`,
+        trim: "trim-silence",
+      }).catch((e) => console.error("[telephony] Failed to start recording:", e));
+    }
+
     // Fallback (no bridge configured): turn-based Gather + Gemini-TTS flow.
     return twiml(
       buildGreetingTwiML({
         greeting,
         actionUrl,
-        record: settings?.recordCalls ?? true,
+        record: false, // Bypassed blocking Record verb
         voiceId: settings?.voiceId,
         voiceSpeed: settings?.voiceSpeed ?? 1.0,
       }),
