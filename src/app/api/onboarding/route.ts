@@ -120,3 +120,49 @@ export async function POST(req: NextRequest) {
     });
   }
 }
+
+export async function GET(req: NextRequest) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
+  const email = session.user.email;
+
+  if (!process.env.DATABASE_URL) {
+    return NextResponse.json({ ok: true, profile: null });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return NextResponse.json({ ok: true, profile: null });
+    }
+
+    const profile = await prisma.businessProfile.findUnique({
+      where: { userId: user.id },
+      include: {
+        twilioNumbers: {
+          where: { active: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (!profile) {
+      return NextResponse.json({ ok: true, profile: null });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      profile: {
+        businessName: profile.name,
+        input: profile.websiteUrl || profile.rawContext || "",
+        niche: profile.niche,
+        phoneNumber: profile.twilioNumbers[0]?.phoneNumber || "+18883210918",
+      },
+    });
+  } catch (err) {
+    console.error("[onboarding] GET failed:", err);
+    return NextResponse.json({ error: "Database error" }, { status: 500 });
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Loader2, ArrowRight } from "lucide-react";
 import { NICHE_OPTIONS } from "@/lib/niche";
@@ -18,6 +18,24 @@ export default function OnboardingPage() {
   });
   const [status, setStatus] = useState<"idle" | "working" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch("/api/onboarding");
+        const data = await res.json();
+        if (data.ok && data.profile) {
+          setBusinessName(data.profile.businessName || "");
+          setInput(data.profile.input || "");
+          setNiche(data.profile.niche || "RESTAURANT");
+          setPhoneNumber(data.profile.phoneNumber || "+18883210918");
+        }
+      } catch (err) {
+        console.error("Failed to load existing profile:", err);
+      }
+    }
+    load();
+  }, []);
 
   async function train() {
     if (!businessName || !input) return;
