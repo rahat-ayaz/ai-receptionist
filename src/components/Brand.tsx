@@ -1,8 +1,8 @@
 import Image from "next/image";
-import caproLogo from "@/images/capro-color.svg";
+import caproLogo from "@/images/capro-white.svg";
 
 export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
-  const heightClass = size === "lg" ? "h-[40px]" : size === "sm" ? "h-[24px]" : "h-[32px]";
+  const heightClass = size === "lg" ? "h-[52px]" : size === "sm" ? "h-[30px]" : "h-[40px]";
   return (
     <div className="flex items-center">
       <Image
