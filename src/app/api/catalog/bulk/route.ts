@@ -10,6 +10,7 @@ interface IncomingItem {
   price?: number | null;
   category?: string | null;
   description?: string | null;
+  imageUrl?: string | null;
 }
 
 /**
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
       price: typeof i.price === "number" && isFinite(i.price) ? Math.round(i.price * 100) / 100 : null,
       category: i.category?.trim() || null,
       description: i.description?.trim() || null,
+      imageUrl: i.imageUrl?.trim() || null,
     }));
 
   if (items.length === 0) {

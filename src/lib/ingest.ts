@@ -10,6 +10,7 @@ export interface ExtractedItem {
   price?: number | null;
   category?: string | null;
   description?: string | null;
+  imageUrl?: string | null;
 }
 
 export interface ExtractionResult {
@@ -144,7 +145,9 @@ async function aiExtract(text: string, niche: string | null): Promise<Extraction
             text:
               `Extract a clean list of ${cfg.itemNounPlural} from the following business content. ` +
               `For each, give a name, an optional price as a plain number (no currency symbol), an optional ` +
-              `${cfg.categoryLabel.toLowerCase()} (the "category" field), and an optional short description. ` +
+              `${cfg.categoryLabel.toLowerCase()} (the "category" field), an optional short description, ` +
+              `and an optional image URL (the "imageUrl" field) if you find an image for this provider/item ` +
+              `represented as [img: URL] in the content. ` +
               `Also classify the overall business niche. Only return real entries, no headings.\n\nCONTENT:\n${text.slice(0, 30000)}`,
           },
         ],
@@ -165,6 +168,7 @@ async function aiExtract(text: string, niche: string | null): Promise<Extraction
                 price: { type: Type.NUMBER },
                 category: { type: Type.STRING },
                 description: { type: Type.STRING },
+                imageUrl: { type: Type.STRING },
               },
               required: ["name"],
             },
@@ -185,6 +189,7 @@ async function aiExtract(text: string, niche: string | null): Promise<Extraction
         price: toPrice(i.price),
         category: i.category?.trim() || null,
         description: i.description?.trim() || null,
+        imageUrl: i.imageUrl?.trim() || null,
       })),
   ).slice(0, 300);
 

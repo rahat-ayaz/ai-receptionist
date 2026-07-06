@@ -5,9 +5,12 @@ export const URL_RE = /^https?:\/\/\S+$/i;
 
 /** Strip a fetched HTML page down to readable text (no extra dependency). */
 export function htmlToText(html: string): string {
-  return html
+  let text = html
+    .replace(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi, " [img: $1] ")
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ");
+
+  return text
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")

@@ -11,12 +11,14 @@ interface Item {
   description: string | null;
   price: number | null;
   category: string | null;
+  imageUrl: string | null;
 }
 interface Draft {
   name: string;
   price: number | null;
   category: string | null;
   description?: string | null;
+  imageUrl?: string | null;
 }
 
 type ImportMode = "file" | "url" | "text";
@@ -33,6 +35,7 @@ export default function CatalogPage() {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
   // Edit item
@@ -40,6 +43,20 @@ export default function CatalogPage() {
   const [editName, setEditName] = useState("");
   const [editPrice, setEditPrice] = useState("");
   const [editCategory, setEditCategory] = useState("");
+  const [editImageUrl, setEditImageUrl] = useState("");
+
+  const addImageRef = useRef<HTMLInputElement>(null);
+  const editImageRef = useRef<HTMLInputElement>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setter(String(reader.result));
+    };
+    reader.readAsDataURL(file);
+  }
 
   // Import
   const [mode, setMode] = useState<ImportMode>("file");
@@ -81,12 +98,13 @@ export default function CatalogPage() {
       const res = await fetch("/api/catalog", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, price: cfg.hasPrice && !isNaN(p) ? p : null, category }),
+        body: JSON.stringify({ name, price: cfg.hasPrice && !isNaN(p) ? p : null, category, imageUrl }),
       });
       const data = (await res.json()) as { error?: string };
       if (data.error) alert(data.error);
       else {
-        setName(""); setPrice(""); setCategory("");
+        setName(""); setPrice(""); setCategory(""); setImageUrl("");
+        if (addImageRef.current) addImageRef.current.value = "";
         await load();
       }
     } finally {
@@ -104,6 +122,7 @@ export default function CatalogPage() {
     setEditName(item.name);
     setEditPrice(item.price != null ? item.price.toString() : "");
     setEditCategory(item.category || "");
+    setEditImageUrl(item.imageUrl || "");
   }
 
   async function saveEdit(id: string) {
@@ -118,6 +137,7 @@ export default function CatalogPage() {
           name: editName,
           price: cfg.hasPrice && !isNaN(p) ? p : null,
           category: editCategory,
+          imageUrl: editImageUrl || null,
         }),
       });
       const data = (await res.json()) as { error?: string };
@@ -292,6 +312,25 @@ export default function CatalogPage() {
           {cfg.hasPrice && <Field label="Price (CAD)"><input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="15.00" inputMode="decimal" className="fld" /></Field>}
           <Field label={cfg.categoryLabel}><input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={cfg.categoryPlaceholder} className="fld" /></Field>
         </div>
+        <div className="mt-4">
+          <Field label="Photo (optional)">
+            <div className="flex items-center gap-3">
+              {imageUrl && (
+                <img src={imageUrl} alt="Preview" className="h-12 w-12 rounded-full object-cover border border-[var(--color-slate-line)]" />
+              )}
+              <input
+                ref={addImageRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFileChange(e, setImageUrl)}
+                className="fld !py-1.5 text-sm cursor-pointer"
+              />
+              {imageUrl && (
+                <button onClick={() => setImageUrl("")} className="text-xs text-red-400 hover:underline">Remove</button>
+              )}
+            </div>
+          </Field>
+        </div>
         <button onClick={addManual} disabled={saving} className="btn-gold mt-5 !w-auto px-4">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
           Add {cfg.itemNoun}
@@ -341,6 +380,24 @@ export default function CatalogPage() {
                         />
                       </div>
                     )}
+                    <div>
+                      <span className="block mb-1 text-[10px] uppercase tracking-wider font-semibold text-[var(--color-ink-faint)]">Photo</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        {editImageUrl && (
+                          <img src={editImageUrl} alt="Preview" className="h-9 w-9 rounded-full object-cover border border-[var(--color-slate-line)]" />
+                        )}
+                        <input
+                          ref={editImageRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleFileChange(e, setEditImageUrl)}
+                          className="text-xs text-[var(--color-ink-dim)] file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-[var(--color-navy-700)] file:text-[var(--color-gold-soft)] hover:file:brightness-110 cursor-pointer"
+                        />
+                        {editImageUrl && (
+                          <button onClick={() => setEditImageUrl("")} className="text-xs text-red-400 hover:underline">Remove</button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <div className="flex gap-2 justify-end">
                     <button
@@ -363,9 +420,21 @@ export default function CatalogPage() {
 
             return (
               <div key={i.id} className="tile tile-hover flex items-center justify-between p-4">
-                <div className="min-w-0">
-                  <p className="truncate font-semibold">{i.name}</p>
-                  {i.category && <p className="mt-0.5 text-[11px] uppercase tracking-wide text-[var(--color-ink-faint)]">{i.category}</p>}
+                <div className="flex items-center gap-3 min-w-0">
+                  {/* Circular Avatar Photo or Placeholder */}
+                  <div className="h-12 w-12 shrink-0 rounded-full overflow-hidden bg-[var(--color-navy-700)] border border-[var(--color-slate-line)]/50 flex items-center justify-center">
+                    {i.imageUrl ? (
+                      <img src={i.imageUrl} alt={i.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-bold text-[var(--color-gold-soft)] uppercase tracking-wide">
+                        {i.name.slice(0, 2)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{i.name}</p>
+                    {i.category && <p className="mt-0.5 text-[11px] uppercase tracking-wide text-[var(--color-ink-faint)]">{i.category}</p>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   {i.price != null && <span className="font-semibold text-[var(--color-gold-soft)]">${i.price.toFixed(2)}</span>}

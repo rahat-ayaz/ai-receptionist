@@ -353,6 +353,7 @@ model CatalogItem {
   price       Float?  // base unit price in CAD (tax-exclusive); null for unpriced niches (doctors, attorneys)
   category    String? // doubles as section / specialty / practice area per niche
   active      Boolean @default(true)
+  imageUrl    String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

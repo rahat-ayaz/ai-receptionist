@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     price?: number | null;
     description?: string;
     category?: string;
+    imageUrl?: string;
   };
   if (!body.name) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
       price,
       description: body.description?.trim() || null,
       category: body.category?.trim() || null,
+      imageUrl: body.imageUrl?.trim() || null,
     },
   });
   return NextResponse.json({ item });

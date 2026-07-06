@@ -15,6 +15,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/catalog/[i
     description?: string;
     category?: string;
     active?: boolean;
+    imageUrl?: string | null;
   };
 
   const data: Record<string, unknown> = {};
@@ -23,6 +24,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/catalog/[i
   if (body.description !== undefined) data.description = body.description.trim() || null;
   if (body.category !== undefined) data.category = body.category.trim() || null;
   if (body.active !== undefined) data.active = body.active;
+  if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl ? body.imageUrl.trim() : null;
 
   const result = await prisma.catalogItem.updateMany({ where: { id, businessProfileId }, data });
   if (result.count === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
