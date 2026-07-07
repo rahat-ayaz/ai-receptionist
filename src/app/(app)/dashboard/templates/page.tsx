@@ -250,16 +250,20 @@ function TemplateSection({
       </h2>
 
       <div className="tile mb-4 p-5">
-        <p className="mb-3 text-xs font-medium text-[var(--color-ink-faint)]">{editingId ? "Edit template" : "New template"}</p>
         <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <input className="fld" value={name} onChange={(e) => setName(e.target.value)} placeholder="Template name" />
-            <label className="flex items-center gap-2 text-xs text-[var(--color-ink-dim)]">
-              Used for
+          <div className="grid gap-3 sm:grid-cols-2 items-end">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-semibold text-[var(--color-ink-dim)]">
+                {editingId ? "Edit template" : "New template"}
+              </span>
+              <input className="fld" value={name} onChange={(e) => setName(e.target.value)} placeholder="Template name" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-semibold text-[var(--color-ink-dim)]">Used for</span>
               <select className="fld !py-2" value={purpose} onChange={(e) => setPurpose(e.target.value)}>
                 {PURPOSES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
-            </label>
+            </div>
           </div>
           {isEmail && <input className="fld" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" />}
           <textarea className="fld resize-y" rows={isEmail ? 4 : 2} value={body} onChange={(e) => setBody(e.target.value)} placeholder={isEmail ? "Email body…" : "Hi {{customerName}}, your order at {{businessName}} is ready!"} />
