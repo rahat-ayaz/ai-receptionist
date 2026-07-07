@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
-import { sendSmsCode, sendSms } from "@/lib/twilio";
+import { sendSmsCode, sendSms, twilioClient } from "@/lib/twilio";
 import { priceOrder, type LineItem, type LineItemInput } from "@/lib/pricing";
 import { normalizeProvince } from "@/lib/tax";
 import { applyTokens, renderBrandedEmail } from "@/lib/branding";
@@ -342,6 +342,22 @@ export async function sendBookingReminder(
   const smsBody = smsTpl ? applyTokens(smsTpl.body, vars) : fallback;
   const fromOverride = bp.twilioNumbers[0]?.phoneNumber ?? undefined;
   await sendSms(booking.customer.phone, smsBody.replace(/\\n/g, "\n"), fromOverride);
+
+  // Outbound Voice Call Reminder
+  if (fromOverride && twilioClient) {
+    const base = (process.env.APP_BASE_URL || "").replace(/\/$/, "");
+    const url = `${base}/api/telephony/outbound-reminder?bookingId=${booking.id}`;
+    try {
+      await twilioClient.calls.create({
+        url,
+        to: booking.customer.phone,
+        from: fromOverride,
+      });
+      console.log(`[bookings] Outbound reminder call triggered for booking ${booking.id}`);
+    } catch (err: any) {
+      console.error("[bookings] Outbound reminder call failed:", err.message);
+    }
+  }
 
   return prisma.booking.update({
     where: { id },

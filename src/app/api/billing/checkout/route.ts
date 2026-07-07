@@ -47,7 +47,10 @@ export async function POST(req: NextRequest) {
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
     metadata: { userId: user.id, tier },
-    subscription_data: { metadata: { userId: user.id, tier } },
+    subscription_data: { 
+      metadata: { userId: user.id, tier },
+      trial_period_days: 7 
+    },
     success_url: `${base}/api/billing/return?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${base}/billing?billing=cancelled`,
   });

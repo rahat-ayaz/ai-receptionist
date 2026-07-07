@@ -29,14 +29,42 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login");
 
-  // Resolve the dynamic catalog tab label/icon from the business niche.
-  const profile = await prisma.businessProfile.findUnique({
-    where: { userId: session.user.id },
+  const pathname = (await headers()).get("x-pathname") || "";
+
+  // Resolve the user's creation date, subscription status, and business niche.
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
     select: {
-      niche: true,
-      twilioNumbers: { where: { active: true }, select: { phoneNumber: true }, take: 1 },
+      createdAt: true,
+      emailVerified: true,
+      phoneNumber: true,
+      phoneNumberVerified: true,
+      subscription: true,
+      businessProfile: {
+        select: {
+          id: true,
+          niche: true,
+          twilioNumbers: { where: { active: true }, select: { phoneNumber: true }, take: 1 },
+        },
+      },
     },
   });
+
+  const profile = user?.businessProfile;
+  const hasSubscription = user?.subscription && user.subscription.status !== "CANCELED";
+  const trialEndsAt = new Date((user?.createdAt || session.user.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000);
+  const isTrialActive = new Date() < trialEndsAt;
+
+  // Redirect to verify email and phone number if unverified
+  if ((!user?.emailVerified || !user?.phoneNumberVerified || !user?.phoneNumber) && pathname !== "/verify") {
+    redirect(`/verify?redirect=${encodeURIComponent(pathname)}`);
+  }
+
+  // Redirect to billing if trial is expired and they don't have a plan
+  if (!isTrialActive && !hasSubscription && pathname !== "/billing") {
+    redirect("/billing?trial=expired");
+  }
+
   const cat = nicheConfig(profile?.niche);
 
   const NAV = profile

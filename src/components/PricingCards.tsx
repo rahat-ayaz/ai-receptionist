@@ -89,12 +89,28 @@ export function PricingCards({ currentTier }: { currentTier?: PlanTier | null })
               ) : null}
               <h3 className="text-lg font-semibold">{plan.name}</h3>
               <div className="mt-2 flex items-end gap-1">
-                <span className="text-3xl font-bold">${plan.price}</span>
-                <span className="mb-1 text-sm text-[var(--color-ink-dim)]">/mo</span>
+                {plan.price > 0 ? (
+                  <>
+                    <span className="text-3xl font-bold">${plan.price}</span>
+                    <span className="mb-1 text-sm text-[var(--color-ink-dim)]">/mo</span>
+                  </>
+                ) : (
+                  <span className="text-3xl font-bold">Custom</span>
+                )}
               </div>
               <p className="mt-1 text-sm text-[var(--color-ink-dim)]">
-                {plan.callCap} calls · ${plan.overage.toFixed(2)} overage
+                {plan.price > 0 ? (
+                  `${plan.callCap} minutes included · $${plan.overage.toFixed(2)} per extra min`
+                ) : (
+                  "Tailored for large organizations."
+                )}
               </p>
+
+              {plan.price > 0 && (
+                <div className="mt-3 inline-block w-fit rounded bg-[var(--color-gold)]/10 border border-[var(--color-gold)]/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--color-gold-soft)]">
+                  First 7 days FREE
+                </div>
+              )}
 
               <ul className="mt-5 flex-1 space-y-2.5">
                 {plan.highlights.map((h) => (
@@ -105,22 +121,31 @@ export function PricingCards({ currentTier }: { currentTier?: PlanTier | null })
                 ))}
               </ul>
 
-              <button
-                onClick={() => subscribe(tier)}
-                disabled={loading !== null || isCurrent}
-                className={`mt-6 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition disabled:opacity-60 ${
-                  featured && !isCurrent
-                    ? "bg-[var(--color-gold)] text-[var(--color-midnight)] hover:brightness-110"
-                    : "border border-[var(--color-slate-line)] text-[var(--color-ink)] hover:border-[var(--color-gold)]/60"
-                }`}
-              >
-                {loading === tier ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {isCurrent
-                  ? "Current plan"
-                  : currentTier
-                    ? `${plan.price > PLANS[currentTier].price ? "Upgrade" : "Downgrade"} to ${plan.name}`
-                    : `Choose ${plan.name}`}
-              </button>
+              {plan.price > 0 ? (
+                <button
+                  onClick={() => subscribe(tier)}
+                  disabled={loading !== null || isCurrent}
+                  className={`mt-6 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition disabled:opacity-60 ${
+                    featured && !isCurrent
+                      ? "bg-[var(--color-gold)] text-[var(--color-midnight)] hover:brightness-110"
+                      : "border border-[var(--color-slate-line)] text-[var(--color-ink)] hover:border-[var(--color-gold)]/60"
+                  }`}
+                >
+                  {loading === tier ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {isCurrent
+                    ? "Current plan"
+                    : currentTier
+                      ? `${plan.price > PLANS[currentTier].price ? "Upgrade" : "Downgrade"} to ${plan.name}`
+                      : `Subscribe Now`}
+                </button>
+              ) : (
+                <a
+                  href="mailto:sales@torqai.ca"
+                  className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-slate-line)] px-4 py-2.5 text-sm font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-gold)]/60"
+                >
+                  Contact Sales
+                </a>
+              )}
             </div>
           );
         })}

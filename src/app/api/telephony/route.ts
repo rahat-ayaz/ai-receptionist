@@ -83,6 +83,12 @@ export async function POST(req: NextRequest) {
         include: {
           agentSettings: true,
           knowledgeBlobs: { where: { active: true } },
+          user: {
+            select: {
+              createdAt: true,
+              subscription: true,
+            },
+          },
         },
       },
     },
@@ -93,6 +99,16 @@ export async function POST(req: NextRequest) {
   }
 
   const profile = number.businessProfile;
+  const user = profile.user;
+
+  const hasSubscription = user?.subscription && user.subscription.status !== "CANCELED";
+  const trialEndsAt = new Date((user?.createdAt || new Date()).getTime() + 7 * 24 * 60 * 60 * 1000);
+  const isTrialActive = new Date() < trialEndsAt;
+
+  if (!isTrialActive && !hasSubscription) {
+    return twiml(buildRejectTwiML("Thank you for calling. This line is temporarily inactive because the account has expired. Goodbye."));
+  }
+
   const settings = profile.agentSettings;
   const greeting = settings?.greetingMessage || `Thank you for calling ${profile.name}. How can I help you today?`;
 
