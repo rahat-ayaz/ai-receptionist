@@ -114,6 +114,13 @@ export async function POST(req: NextRequest) {
       update: {}, // a redirect with no speech just re-greets
     });
 
+    if (settings?.recordCalls) {
+      await twilioClient.calls(callSid).recordings.create({
+        recordingStatusCallback: `${actionUrl}/recording`,
+        trim: "trim-silence",
+      }).catch((e) => console.error("[telephony] Failed to start recording:", e));
+    }
+
     // Preferred path: hand the call to the Gemini Live bridge (real-time voice).
     const wss = process.env.PUBLIC_WSS_URL;
     if (wss) {
@@ -124,13 +131,6 @@ export async function POST(req: NextRequest) {
           callerNumber: fromNumber ?? "unknown",
         }),
       );
-    }
-
-    if (settings?.recordCalls) {
-      await twilioClient.calls(callSid).recordings.create({
-        recordingStatusCallback: `${actionUrl}/recording`,
-        trim: "trim-silence",
-      }).catch((e) => console.error("[telephony] Failed to start recording:", e));
     }
 
     // Fallback (no bridge configured): turn-based Gather + Gemini-TTS flow.
