@@ -10,19 +10,34 @@ import { GoogleGenAI } from "@google/genai";
 import { twilioToGemini, geminiToTwilio } from "./audio.mjs";
 import twilio from "twilio";
 
+import { createServer } from "http";
+
 const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
   ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
   : null;
 
-const PORT = Number(process.env.VOICE_BRIDGE_PORT || 3211);
+const PORT = Number(process.env.PORT || process.env.VOICE_BRIDGE_PORT || 3211);
 const SECRET = process.env.VOICE_BRIDGE_SECRET || "";
 const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-2.5-flash-native-audio-latest";
 const APP_URL = process.env.APP_INTERNAL_URL || process.env.BETTER_AUTH_URL || "http://localhost:3210";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const wss = new WebSocketServer({ port: PORT });
-console.log(`[voice-bridge] listening on ws://localhost:${PORT}  (model: ${LIVE_MODEL})`);
+const server = createServer((req, res) => {
+  if (req.url === "/health" || req.url === "/") {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("OK");
+  } else {
+    res.writeHead(404);
+    res.end();
+  }
+});
+
+const wss = new WebSocketServer({ server });
+
+server.listen(PORT, () => {
+  console.log(`[voice-bridge] listening on port ${PORT} (model: ${LIVE_MODEL})`);
+});
 
 wss.on("connection", (twilio) => {
   let streamSid = null;
