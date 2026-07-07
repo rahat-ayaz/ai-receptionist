@@ -17,10 +17,9 @@ const ENV_PATH = join(ROOT, ".env");
 
 // Mirror of src/lib/plans.ts (kept inline so this plain-Node script needs no TS).
 const PLANS = [
-  { tier: "STARTER", name: "CAPRO Starter", price: 24.95, callCap: 30, env: "STRIPE_PRICE_STARTER" },
-  { tier: "PREMIUM", name: "CAPRO Premium", price: 59.95, callCap: 90, env: "STRIPE_PRICE_PREMIUM" },
-  { tier: "PRO", name: "CAPRO Pro", price: 159.95, callCap: 300, env: "STRIPE_PRICE_PRO" },
-  { tier: "SCALE", name: "CAPRO Scale", price: 299.95, callCap: 600, env: "STRIPE_PRICE_SCALE" },
+  { tier: "STARTER", name: "CAPRO Starter", price: 199.00, callCap: 400, env: "STRIPE_PRICE_STARTER" },
+  { tier: "PREMIUM", name: "CAPRO Growth", price: 449.00, callCap: 1000, env: "STRIPE_PRICE_PREMIUM" },
+  { tier: "PRO", name: "CAPRO Professional", price: 899.00, callCap: 2500, env: "STRIPE_PRICE_PRO" },
 ];
 
 const key = process.env.STRIPE_SECRET_KEY;
