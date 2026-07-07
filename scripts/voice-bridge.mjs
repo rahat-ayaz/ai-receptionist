@@ -73,11 +73,15 @@ wss.on("connection", (twilio) => {
       },
       callbacks: {
         onopen: () => {
-          // Make the agent speak first.
-          session.sendClientContent({
-            turns: "The caller has just connected. Greet them warmly and briefly, then ask how you can help.",
-            turnComplete: true,
-          });
+          // Defer greeting trigger to ensure the outer `session` variable is assigned first.
+          setTimeout(() => {
+            if (session) {
+              session.sendClientContent({
+                turns: "The caller has just connected. Greet them warmly and briefly, then ask how you can help.",
+                turnComplete: true,
+              });
+            }
+          }, 0);
         },
         onmessage: (m) => {
           const sc = m.serverContent;
