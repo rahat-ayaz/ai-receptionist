@@ -95,7 +95,7 @@ export function OutboundCallButton() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. John Doe"
-                    className="mt-1.5 input text-sm"
+                    className="fld mt-1.5"
                   />
                 </div>
 
@@ -109,7 +109,7 @@ export function OutboundCallButton() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="e.g. +15555555555"
-                    className="mt-1.5 input text-sm"
+                    className="fld mt-1.5"
                   />
                 </div>
 
@@ -122,7 +122,7 @@ export function OutboundCallButton() {
                     value={context}
                     onChange={(e) => setContext(e.target.value)}
                     placeholder="e.g. Ask the client if they received our invoice."
-                    className="mt-1.5 input text-sm resize-none"
+                    className="fld mt-1.5 resize-none"
                   />
                 </div>
 
