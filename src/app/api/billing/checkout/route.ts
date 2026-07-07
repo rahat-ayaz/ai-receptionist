@@ -33,27 +33,32 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user) {
-    return NextResponse.json({ error: "User not found." }, { status: 404 });
-  }
+  try {
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found." }, { status: 404 });
+    }
 
-  const stripe = getStripe();
-  const customerId = await getOrCreateCustomer(user);
+    const stripe = getStripe();
+    const customerId = await getOrCreateCustomer(user);
 
-  const base = process.env.BETTER_AUTH_URL || process.env.APP_BASE_URL || "http://localhost:3210";
-  const checkout = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    line_items: [{ price: priceId, quantity: 1 }],
-    metadata: { userId: user.id, tier },
-    subscription_data: { 
+    const base = process.env.BETTER_AUTH_URL || process.env.APP_BASE_URL || "http://localhost:3210";
+    const checkout = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      line_items: [{ price: priceId, quantity: 1 }],
       metadata: { userId: user.id, tier },
-      trial_period_days: 7 
-    },
-    success_url: `${base}/api/billing/return?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${base}/billing?billing=cancelled`,
-  });
+      subscription_data: { 
+        metadata: { userId: user.id, tier },
+        trial_period_days: 7 
+      },
+      success_url: `${base}/api/billing/return?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${base}/billing?billing=cancelled`,
+    });
 
-  return NextResponse.json({ url: checkout.url });
+    return NextResponse.json({ url: checkout.url });
+  } catch (err: any) {
+    console.error("[billing:checkout] failed to create session:", err);
+    return NextResponse.json({ error: err.message || "Failed to initiate Stripe checkout." }, { status: 500 });
+  }
 }
