@@ -119,7 +119,10 @@ export async function generateReply(
 ): Promise<string> {
   const contents = [
     ...toContents(history),
-    { role: "user" as const, parts: [{ text: callerText }] },
+    { 
+      role: "user" as const, 
+      parts: [{ text: `${callerText} (Remember: Keep your response to a maximum of 1 or 2 short sentences. Absolutely no lists or long paragraphs.)` }] 
+    },
   ];
 
   const res = await gemini.models.generateContent({
@@ -128,7 +131,7 @@ export async function generateReply(
     config: {
       systemInstruction,
       temperature: 0.6,
-      maxOutputTokens: 220,
+      maxOutputTokens: 80,
     },
   });
 
