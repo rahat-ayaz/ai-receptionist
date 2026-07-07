@@ -5,7 +5,7 @@
   "description": "CAPRO — AI Automated Receptionist platform by TorqAI Technologies Inc.",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push --accept-data-loss && next build",
+    "build": "prisma generate && (prisma db push --accept-data-loss || echo 'Database sync bypassed or offline') && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
