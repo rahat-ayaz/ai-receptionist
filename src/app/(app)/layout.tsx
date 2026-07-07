@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import {
   LayoutGrid, Phone, BookOpen, MessageSquareText, CreditCard, Settings, CalendarCheck,
   ListChecks, UtensilsCrossed, Stethoscope, Scale, Scissors, Wrench, Home, ShoppingBag,
-  AudioLines, FileText, UserCog, type LucideIcon,
+  AudioLines, FileText, UserCog, Clock, type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/Brand";
 import { auth } from "@/lib/auth";
@@ -54,6 +54,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const hasSubscription = user?.subscription && user.subscription.status !== "CANCELED";
   const trialEndsAt = new Date((user?.createdAt || session.user.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000);
   const isTrialActive = new Date() < trialEndsAt;
+  const trialDaysRemaining = Math.max(0, Math.ceil((trialEndsAt.getTime() - new Date().getTime()) / (24 * 60 * 60 * 1000)));
 
   // Redirect to verify email and phone number if unverified
   if ((!user?.emailVerified || !user?.phoneNumberVerified || !user?.phoneNumber) && pathname !== "/verify") {
@@ -129,7 +130,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link href="/billing">Billing</Link>
           </nav>
         </header>
-        <main className="min-w-0 flex-1">{children}</main>
+        <main className="min-w-0 flex-1">
+          {!hasSubscription && (
+            <div className="mx-5 mt-6 sm:mx-8 rounded-lg border border-[var(--color-gold)]/30 bg-[var(--color-gold)]/5 px-4 py-3.5 text-sm text-[var(--color-gold-soft)] flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4.5 w-4.5 shrink-0 animate-pulse text-[var(--color-gold)]" />
+                <span>
+                  You are currently on your <strong>7-day free trial</strong>. You have <strong>{trialDaysRemaining} days</strong> remaining.
+                </span>
+              </div>
+              <Link href="/billing" className="rounded bg-[var(--color-gold)] px-3 py-1 text-xs font-bold text-[var(--color-midnight)] hover:brightness-110 transition">
+                Subscribe Now
+              </Link>
+            </div>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );
