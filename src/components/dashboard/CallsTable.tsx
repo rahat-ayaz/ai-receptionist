@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Clock, ShieldAlert, Phone, Volume2 } from "lucide-react";
+import { ChevronDown, Clock, ShieldAlert, PhoneIncoming, PhoneOutgoing, Volume2 } from "lucide-react";
 
 export interface CallRow {
   id: string;
@@ -15,6 +15,7 @@ export interface CallRow {
   status: string;
   summary: string | null;
   sentiment: string;
+  direction: "INBOUND" | "OUTBOUND";
   recordingUrl: string | null;
   transcript: { role: string; text: string; at: string }[];
 }
@@ -71,7 +72,11 @@ export function CallsTable({ calls }: { calls: CallRow[] }) {
                 className="grid w-full grid-cols-1 gap-2 px-5 py-4 text-left transition hover:bg-[var(--color-navy-700)]/40 sm:grid-cols-12 sm:items-center sm:gap-3"
               >
                 <div className="col-span-3 flex items-center gap-2 font-medium">
-                  <Phone className="h-4 w-4 text-[var(--color-gold)]" />
+                  {call.direction === "OUTBOUND" ? (
+                    <PhoneOutgoing className="h-4 w-4 text-[var(--color-gold)]" />
+                  ) : (
+                    <PhoneIncoming className="h-4 w-4 text-sky-400" />
+                  )}
                   {call.callerNumber}
                   {call.isSpam && <ShieldAlert className="h-4 w-4 text-zinc-400" aria-label="Spam" />}
                   <span className="text-sm" title={`Sentiment: ${sentimentOf(call.sentiment).label}`}>

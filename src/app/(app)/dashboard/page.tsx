@@ -80,6 +80,7 @@ async function loadDashboard(): Promise<DashboardData> {
       status: s.status,
       summary: s.summary,
       sentiment: s.sentiment,
+      direction: s.direction,
       recordingUrl: s.recordingUrl ? `/api/calls/${s.id}/recording` : null,
       transcript: (s.transcript as { role: string; text: string; at: string }[]) ?? [],
     }));

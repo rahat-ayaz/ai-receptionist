@@ -14,6 +14,7 @@ export const DEMO_CALLS: CallRow[] = [
     status: "COMPLETED",
     summary: "Caller asked about Pro-tier pricing and requested a product demo for a 40-seat team.",
     sentiment: "POSITIVE",
+    direction: "INBOUND",
     recordingUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
     transcript: [
       { role: "agent", text: "Thank you for calling TorqAI. How can I help you today?", at: "" },
@@ -34,6 +35,7 @@ export const DEMO_CALLS: CallRow[] = [
     status: "COMPLETED",
     summary: "Existing customer reported a service outage and requested an urgent callback.",
     sentiment: "NEGATIVE",
+    direction: "INBOUND",
     recordingUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
     transcript: [
       { role: "agent", text: "Thanks for calling. How can I help?", at: "" },
@@ -52,6 +54,7 @@ export const DEMO_CALLS: CallRow[] = [
     status: "COMPLETED",
     summary: "Detected as an automated robocall and terminated.",
     sentiment: "NEUTRAL",
+    direction: "INBOUND",
     recordingUrl: null,
     transcript: [
       { role: "agent", text: "Thank you for calling. How can I help you today?", at: "" },
@@ -69,6 +72,7 @@ export const DEMO_CALLS: CallRow[] = [
     status: "COMPLETED",
     summary: "Caller asked for business hours and address; provided both.",
     sentiment: "POSITIVE",
+    direction: "INBOUND",
     recordingUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
     transcript: [
       { role: "agent", text: "Thanks for calling, how can I help?", at: "" },
