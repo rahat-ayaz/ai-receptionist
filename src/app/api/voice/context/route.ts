@@ -37,14 +37,42 @@ export async function GET(req: NextRequest) {
     knowledge: profile.knowledgeBlobs.map((k) => `${k.title}: ${k.data}`),
   });
 
+  let customerName: string | null = null;
+  let customerEmail: string | null = null;
+
   if (callSid) {
     const session = await prisma.callSession.findUnique({
       where: { twilioCallSid: callSid },
-      select: { customContext: true },
+      select: { customContext: true, callerNumber: true },
     });
-    if (session?.customContext) {
-      systemInstruction += `\n\n[CRITICAL INSTRUCTION FOR THIS OUTBOUND CALL]: You initiated this call to this customer with the following goal/context: "${session.customContext}". Please lead the conversation to address this goal directly after greeting them.`;
+    if (session) {
+      if (session.customContext) {
+        systemInstruction += `\n\n[CRITICAL INSTRUCTION FOR THIS OUTBOUND CALL]: You initiated this call to this customer with the following goal/context: "${session.customContext}". Please lead the conversation to address this goal directly after greeting them.`;
+      }
+
+      if (session.callerNumber) {
+        const customer = await prisma.customer.findUnique({
+          where: {
+            businessProfileId_phone: {
+              businessProfileId: profile.id,
+              phone: session.callerNumber,
+            },
+          },
+          select: { name: true, email: true },
+        });
+        if (customer) {
+          customerName = customer.name;
+          customerEmail = customer.email;
+        }
+      }
     }
+  }
+
+  // Inject memory rules
+  if (customerName) {
+    systemInstruction += `\n\n[RETURNING CUSTOMER]: The caller is a returning customer named "${customerName}". Greet them by name (e.g. "Welcome back, ${customerName}!"). Since you already know their name and email (${customerEmail || "not set"}), you do not need to ask for these details when booking/ordering, unless they want to update them.`;
+  } else {
+    systemInstruction += `\n\n[NEW CUSTOMER]: You do not know the caller's name or email. If they schedule an appointment, place an order, or book a slot, you MUST ask for their full name and email address to complete the booking.`;
   }
 
   return NextResponse.json({
