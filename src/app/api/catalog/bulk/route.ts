@@ -35,6 +35,9 @@ export async function POST(req: NextRequest) {
       category: i.category?.trim() || null,
       description: i.description?.trim() || null,
       imageUrl: i.imageUrl?.trim() || null,
+      active: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }));
 
   if (items.length === 0) {
