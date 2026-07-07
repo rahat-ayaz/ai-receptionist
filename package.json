@@ -32,7 +32,8 @@
     "stripe": "^18.5.0",
     "twilio": "^6.0.2",
     "ws": "^8.21.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "dotenv": "^16.4.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -41,7 +42,6 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/ws": "^8.18.1",
-    "dotenv": "^16.4.7",
     "embedded-postgres": "^18.4.0-beta.17",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
