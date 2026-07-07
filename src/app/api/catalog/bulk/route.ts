@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { currentProfileId } from "@/lib/tenant";
 import { isNiche } from "@/lib/niche";
 
-import { randomUUID } from "crypto";
+import { randomBytes } from "crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   const items = (body.items ?? [])
     .filter((i) => i.name?.trim())
     .map((i) => ({
-      id: randomUUID(),
+      id: "c" + randomBytes(12).toString("hex"),
       businessProfileId,
       name: i.name!.trim(),
       price: typeof i.price === "number" && isFinite(i.price) ? Math.round(i.price * 100) / 100 : null,
