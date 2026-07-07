@@ -22,6 +22,12 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/calls/[id]/reco
   });
   if (!call?.recordingUrl) return new NextResponse("No recording", { status: 404 });
 
+  // If the recording URL is a public/demo audio link (not hosted on Twilio), redirect directly to it
+  // to avoid requiring Twilio credentials.
+  if (!call.recordingUrl.includes("twilio.com")) {
+    return NextResponse.redirect(call.recordingUrl);
+  }
+
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   if (!sid || !token) return new NextResponse("Telephony not configured", { status: 503 });
