@@ -135,6 +135,24 @@ wss.on("connection", (twilio) => {
                   console.warn("[voice-bridge] Twilio client or Call SID not available for redirect.");
                 }
               }
+            } else {
+              // Check if caller or agent wants to end the call (saying goodbye / bye)
+              const callerWantsHangup = /\b(bye|goodbye|hang up|talk later|see ya)\b/i.test(callerUtterance);
+              const agentWantsHangup = /\b(goodbye|bye|have a (great|nice|good) day|have a good one|take care)\b/i.test(agentReply);
+
+              if (callerWantsHangup || agentWantsHangup) {
+                console.log(`[voice-bridge] Goodbye/hangup detected. Hanging up call ${callSid}`);
+                if (twilioClient && callSid) {
+                  // Give a 3-second delay to let the spoken agent reply reach the caller before hanging up.
+                  setTimeout(async () => {
+                    try {
+                      await twilioClient.calls(callSid).update({ status: "completed" });
+                    } catch (e) {
+                      console.error("[voice-bridge] call hangup failed:", e.message);
+                    }
+                  }, 3000);
+                }
+              }
             }
 
             inBuf = "";

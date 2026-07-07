@@ -199,15 +199,22 @@ export default function CatalogPage() {
     if (!review?.length) return;
     setSaving(true);
     try {
-      await fetch("/api/catalog/bulk", {
+      const res = await fetch("/api/catalog/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: review }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Failed to save items.");
+        return;
+      }
       setReview(null);
       setPasteText(""); setUrl("");
       if (fileRef.current) fileRef.current.value = "";
       await load();
+    } catch (err) {
+      alert("An error occurred while saving.");
     } finally {
       setSaving(false);
     }
