@@ -6,6 +6,10 @@ import twilio from "twilio";
 
 export const dynamic = "force-dynamic";
 
+const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
+
 function twiml(xml: string) {
   return new Response(xml, {
     headers: { "Content-Type": "application/xml" },
@@ -68,6 +72,14 @@ export async function POST(req: NextRequest) {
       },
       update: {},
     });
+
+    if (settings?.recordCalls && twilioClient) {
+      const base = (process.env.BETTER_AUTH_URL || process.env.APP_BASE_URL || "https://ai-receptionist-rho-three.vercel.app").replace(/\/$/, "");
+      await twilioClient.calls(callSid).recordings.create({
+        recordingStatusCallback: `${base}/api/telephony/recording`,
+        trim: "trim-silence",
+      }).catch((e) => console.error("[telephony:outbound-connect] Failed to start recording:", e));
+    }
 
     const wss = process.env.PUBLIC_WSS_URL;
     if (wss) {
