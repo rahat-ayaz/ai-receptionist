@@ -13,14 +13,14 @@ export function AuthShell({
   footer?: React.ReactNode;
 }) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col px-5 py-8">
-      <header>
-        <Link href="/" className="inline-block">
-          <Logo />
-        </Link>
-      </header>
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5 py-8">
+      <div className="flex flex-col py-10">
+        <div className="mb-6 flex justify-center">
+          <Link href="/">
+            <Logo />
+          </Link>
+        </div>
 
-      <div className="flex flex-1 flex-col justify-center py-10">
         <div className="tile p-7">
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           {subtitle && <p className="mt-1.5 text-sm text-[var(--color-ink-dim)]">{subtitle}</p>}
