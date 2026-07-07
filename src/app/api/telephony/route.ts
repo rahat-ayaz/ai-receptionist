@@ -53,7 +53,8 @@ function resolveForwardingTarget(
  *     ask Gemini for the next spoken reply, loop the <Gather>.
  */
 export async function POST(req: NextRequest) {
-  const actionUrl = `${process.env.APP_BASE_URL}/api/telephony`;
+  const baseUrl = (process.env.APP_BASE_URL || "").replace(/\/$/, "");
+  const actionUrl = `${baseUrl}/api/telephony`;
 
   // 1) Parse + authenticate the Twilio payload.
   const form = await req.formData();

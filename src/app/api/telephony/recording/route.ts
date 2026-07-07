@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
  * Twilio recording status callback. Saves the completed recording URL to the CallSession.
  */
 export async function POST(req: NextRequest) {
-  const url = `${process.env.APP_BASE_URL}/api/telephony/recording`;
+  const baseUrl = (process.env.APP_BASE_URL || "").replace(/\/$/, "");
+  const url = `${baseUrl}/api/telephony/recording`;
   const form = await req.formData();
   const params: Record<string, string> = {};
   form.forEach((v, k) => (params[k] = v.toString()));

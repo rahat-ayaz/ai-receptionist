@@ -14,7 +14,8 @@ export const dynamic = "force-dynamic";
  * fire "after call" SMS triggers, and meter usage against the subscription.
  */
 export async function POST(req: NextRequest) {
-  const url = `${process.env.APP_BASE_URL}/api/telephony/status`;
+  const baseUrl = (process.env.APP_BASE_URL || "").replace(/\/$/, "");
+  const url = `${baseUrl}/api/telephony/status`;
   const form = await req.formData();
   const params: Record<string, string> = {};
   form.forEach((v, k) => (params[k] = v.toString()));
