@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { Phone, Clock, ShieldCheck, Activity, CheckCircle2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
@@ -121,6 +122,15 @@ export default async function DashboardPage({
     redirect("/onboarding");
   }
 
+  // Check trial days remaining
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { createdAt: true, subscription: true },
+  });
+  const hasSubscription = user?.subscription && user.subscription.status !== "CANCELED";
+  const trialEndsAt = new Date((user?.createdAt || session.user.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000);
+  const trialDaysRemaining = Math.max(0, Math.ceil((trialEndsAt.getTime() - new Date().getTime()) / (24 * 60 * 60 * 1000)));
+
   const d = await loadDashboard();
   const { billing } = await searchParams;
   const usage = d.usage ?? { used: 7, included: PLANS.STARTER.callCap, tier: "STARTER" as PlanTier };
@@ -132,6 +142,19 @@ export default async function DashboardPage({
         <div className="mb-5 flex items-center gap-2.5 rounded-lg border border-emerald-400/40 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">
           <CheckCircle2 className="h-4.5 w-4.5 shrink-0" />
           Subscription active — your plan is now live. Thanks for subscribing to CAPRO.
+        </div>
+      )}
+      {!hasSubscription && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--color-gold)]/30 bg-[var(--color-gold)]/5 px-4 py-3.5 text-sm text-[var(--color-gold-soft)]">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4.5 w-4.5 shrink-0 animate-pulse text-[var(--color-gold)]" />
+            <span>
+              You are currently on your **7-day free trial**. You have **{trialDaysRemaining} days** remaining.
+            </span>
+          </div>
+          <Link href="/billing" className="rounded bg-[var(--color-gold)] px-3 py-1 text-xs font-bold text-[var(--color-midnight)] hover:brightness-110 transition">
+            Subscribe Now
+          </Link>
         </div>
       )}
       <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
