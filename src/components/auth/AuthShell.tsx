@@ -17,7 +17,7 @@ export function AuthShell({
       <div className="flex flex-col py-10">
         <div className="mb-6 flex justify-center">
           <Link href="/">
-            <Logo />
+            <Logo size="lg" />
           </Link>
         </div>
 
