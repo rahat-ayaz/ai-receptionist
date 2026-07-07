@@ -46,7 +46,12 @@ async function loadInvoices(userId: string): Promise<Stripe.Invoice[]> {
   }
 }
 
-export default async function BillingPage() {
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ trial?: string }>;
+}) {
+  const { trial } = await searchParams;
   const session = await auth.api.getSession({ headers: await headers() });
   const sub = session
     ? await prisma.subscription.findUnique({ where: { userId: session.user.id } })
@@ -58,6 +63,14 @@ export default async function BillingPage() {
 
   return (
     <main className="w-full px-5 py-8 sm:px-8">
+      {trial === "expired" && (
+        <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+          <p className="font-semibold">Your 7-day free trial has expired.</p>
+          <p className="mt-1 text-xs opacity-90">
+            Please choose a subscription plan below to reactivate your AI receptionist and restore access to your dashboard.
+          </p>
+        </div>
+      )}
       {/* Current subscription panel */}
       {hasActivePlan && sub && (
         <div className="tile mt-8 p-6">
