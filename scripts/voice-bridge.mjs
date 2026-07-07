@@ -53,7 +53,7 @@ wss.on("connection", (twilio) => {
   async function openGemini() {
     let ctx = { systemInstruction: "You are a helpful phone receptionist. Keep replies short.", voiceId: "Kore" };
     try {
-      const r = await fetch(`${APP_URL}/api/voice/context?profileId=${encodeURIComponent(profileId)}`, {
+      const r = await fetch(`${APP_URL}/api/voice/context?profileId=${encodeURIComponent(profileId)}&callSid=${encodeURIComponent(callSid || "")}`, {
         headers: { Authorization: `Bearer ${SECRET}` },
       });
       if (r.ok) ctx = await r.json();

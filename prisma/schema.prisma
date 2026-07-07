@@ -234,6 +234,7 @@ model CallSession {
   // Runtime duration tracking (seconds).
   durationSeconds Int? @default(0)
   recordingUrl    String?
+  customContext   String? @db.Text
 
   // Analytics tagging.
   category  CallCategory  @default(UNCLASSIFIED)

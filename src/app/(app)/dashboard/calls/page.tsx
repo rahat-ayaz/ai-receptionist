@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { currentProfileId } from "@/lib/tenant";
 import { CallsTable, type CallRow } from "@/components/dashboard/CallsTable";
+import { OutboundCallButton } from "@/components/dashboard/OutboundCallButton";
 import { DEMO_CALLS } from "@/lib/demo";
 
 export const dynamic = "force-dynamic";
@@ -42,16 +43,19 @@ export default async function CallsPage() {
   const { calls, isDemo } = await loadCalls();
   return (
     <div className="px-5 py-6 sm:px-8">
-      <div className="mb-7 flex items-end justify-between">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Call log</h1>
           <p className="mt-1 text-sm text-[var(--color-ink-dim)]">Every conversation, transcribed and classified.</p>
         </div>
-        {isDemo && (
-          <span className="rounded-full border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/10 px-3 py-1 text-xs font-medium text-[var(--color-gold-soft)]">
-            Demo data
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {!isDemo && <OutboundCallButton />}
+          {isDemo && (
+            <span className="rounded-full border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/10 px-3 py-1 text-xs font-medium text-[var(--color-gold-soft)]">
+              Demo data
+            </span>
+          )}
+        </div>
       </div>
       <CallsTable calls={calls} />
     </div>

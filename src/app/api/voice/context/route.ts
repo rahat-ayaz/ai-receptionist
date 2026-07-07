@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   }
 
   const profileId = req.nextUrl.searchParams.get("profileId");
+  const callSid = req.nextUrl.searchParams.get("callSid");
   if (!profileId) return NextResponse.json({ error: "profileId required" }, { status: 400 });
 
   const profile = await prisma.businessProfile.findUnique({
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   if (!profile) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const s = profile.agentSettings;
-  const systemInstruction = buildSystemPrompt({
+  let systemInstruction = buildSystemPrompt({
     businessName: profile.name,
     receptionistName: s?.receptionistName ?? "Ava",
     tone: s?.tone ?? "PROFESSIONAL",
@@ -35,6 +36,16 @@ export async function GET(req: NextRequest) {
     ruleMatrix: profile.ruleMatrix,
     knowledge: profile.knowledgeBlobs.map((k) => `${k.title}: ${k.data}`),
   });
+
+  if (callSid) {
+    const session = await prisma.callSession.findUnique({
+      where: { twilioCallSid: callSid },
+      select: { customContext: true },
+    });
+    if (session?.customContext) {
+      systemInstruction += `\n\n[CRITICAL INSTRUCTION FOR THIS OUTBOUND CALL]: You initiated this call to this customer with the following goal/context: "${session.customContext}". Please lead the conversation to address this goal directly after greeting them.`;
+    }
+  }
 
   return NextResponse.json({
     systemInstruction,
