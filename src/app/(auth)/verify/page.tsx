@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Mail, Phone, CheckCircle2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { OtpInput } from "@/components/auth/OtpInput";
 
-export default function VerifyPage() {
+function VerifyPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get("redirect") || "/dashboard";
@@ -235,5 +235,19 @@ export default function VerifyPage() {
         </div>
       )}
     </AuthShell>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[var(--color-midnight)]">
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--color-gold)]" />
+        </div>
+      }
+    >
+      <VerifyPageContent />
+    </Suspense>
   );
 }
