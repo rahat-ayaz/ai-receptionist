@@ -9,7 +9,7 @@ let client: Stripe | null = null;
  */
 export function getStripe(): Stripe {
   if (client) return client;
-  const key = process.env.STRIPE_SECRET_KEY;
+  const key = process.env.STRIPE_SECRET_KEY?.trim();
   if (!key) {
     throw new Error("STRIPE_SECRET_KEY is not set — billing is unavailable.");
   }
