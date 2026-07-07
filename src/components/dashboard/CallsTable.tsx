@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Clock, ShieldAlert, PhoneIncoming, PhoneOutgoing, Volume2 } from "lucide-react";
+import { ChevronDown, Clock, ShieldAlert, PhoneIncoming, PhoneOutgoing, Volume2, Smile, Meh, Frown } from "lucide-react";
 
 export interface CallRow {
   id: string;
@@ -29,11 +29,18 @@ const CATEGORY_STYLES: Record<string, string> = {
   UNCLASSIFIED: "bg-slate-400/10 text-slate-300 border-slate-400/20",
 };
 
-const SENTIMENT: Record<string, { emoji: string; label: string; cls: string }> = {
-  POSITIVE: { emoji: "🙂", label: "Positive", cls: "text-emerald-300 border-emerald-400/30 bg-emerald-400/10" },
-  NEUTRAL: { emoji: "😐", label: "Neutral", cls: "text-slate-300 border-slate-400/30 bg-slate-400/10" },
-  NEGATIVE: { emoji: "🙁", label: "Negative", cls: "text-red-300 border-red-400/30 bg-red-400/10" },
-  MIXED: { emoji: "😕", label: "Mixed", cls: "text-amber-300 border-amber-400/30 bg-amber-400/10" },
+interface SentimentConfig {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  color: string;
+  cls: string;
+}
+
+const SENTIMENT: Record<string, SentimentConfig> = {
+  POSITIVE: { icon: Smile, label: "Positive", color: "text-emerald-400", cls: "text-emerald-300 border-emerald-400/30 bg-emerald-400/10" },
+  NEUTRAL: { icon: Meh, label: "Neutral", color: "text-amber-500", cls: "text-amber-300 border-amber-400/30 bg-amber-400/10" },
+  NEGATIVE: { icon: Frown, label: "Negative", color: "text-red-400", cls: "text-red-300 border-red-400/30 bg-red-400/10" },
+  MIXED: { icon: Meh, label: "Mixed", color: "text-amber-500", cls: "text-amber-300 border-amber-400/30 bg-amber-400/10" },
 };
 const sentimentOf = (s: string) => SENTIMENT[s] ?? SENTIMENT.NEUTRAL;
 
@@ -79,9 +86,14 @@ export function CallsTable({ calls }: { calls: CallRow[] }) {
                   )}
                   {call.callerNumber}
                   {call.isSpam && <ShieldAlert className="h-4 w-4 text-zinc-400" aria-label="Spam" />}
-                  <span className="text-sm" title={`Sentiment: ${sentimentOf(call.sentiment).label}`}>
-                    {sentimentOf(call.sentiment).emoji}
-                  </span>
+                  {(() => {
+                    const SentIcon = sentimentOf(call.sentiment).icon;
+                    return (
+                      <span className="inline-flex items-center" title={`Sentiment: ${sentimentOf(call.sentiment).label}`}>
+                        <SentIcon className={`h-4.5 w-4.5 ${sentimentOf(call.sentiment).color}`} />
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="col-span-3 text-sm text-[var(--color-ink-dim)]">
                   {new Date(call.startedAt).toLocaleString()}
@@ -115,11 +127,16 @@ export function CallsTable({ calls }: { calls: CallRow[] }) {
                   >
                     <div className="bg-[var(--color-midnight)]/60 px-5 py-5">
                       <div className="mb-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${sentimentOf(call.sentiment).cls}`}
-                        >
-                          {sentimentOf(call.sentiment).emoji} {sentimentOf(call.sentiment).label} sentiment
-                        </span>
+                        {(() => {
+                          const SentIcon = sentimentOf(call.sentiment).icon;
+                          return (
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${sentimentOf(call.sentiment).cls}`}
+                            >
+                              <SentIcon className="h-3.5 w-3.5" /> {sentimentOf(call.sentiment).label} sentiment
+                            </span>
+                          );
+                        })()}
                       </div>
                       {call.recordingUrl && (
                         <div className="mb-4">
