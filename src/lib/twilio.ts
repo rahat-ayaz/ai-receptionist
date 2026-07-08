@@ -62,7 +62,7 @@ export function buildGreetingTwiML(opts: GreetingOptions): string {
     input: ["speech"],
     action: opts.actionUrl,
     method: "POST",
-    speechTimeout: "auto",
+    speechTimeout: 2,
     speechModel: "phone_call",
   });
   speak(gather, opts.greeting, opts.voiceId, opts.voiceSpeed);
@@ -95,7 +95,7 @@ export function buildReplyTwiML(opts: ReplyOptions): string {
     input: ["speech"],
     action: opts.actionUrl,
     method: "POST",
-    speechTimeout: "auto",
+    speechTimeout: 2,
     speechModel: "phone_call",
   });
   speak(gather, opts.text, opts.voiceId, opts.voiceSpeed);

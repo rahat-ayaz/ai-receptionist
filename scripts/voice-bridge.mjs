@@ -159,8 +159,18 @@ wss.on("connection", (twilio) => {
             outBuf = "";
           }
         },
-        onerror: (e) => console.error("[voice-bridge] gemini error:", e?.message),
-        onclose: () => {},
+        onerror: (e) => {
+          console.error("[voice-bridge] gemini error:", e?.message);
+          if (twilioClient && callSid && !finalized) {
+            twilioClient.calls(callSid).update({ status: "completed" }).catch(() => {});
+          }
+        },
+        onclose: () => {
+          console.log(`[voice-bridge] Gemini Live session closed for call ${callSid}`);
+          if (twilioClient && callSid && !finalized) {
+            twilioClient.calls(callSid).update({ status: "completed" }).catch(() => {});
+          }
+        },
       },
     });
   }
