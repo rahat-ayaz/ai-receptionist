@@ -24,7 +24,7 @@
 
 html,
 body {
-  background-color: var(--color-midnight);
+  background-color: var(--color-midnight) !important;
   background:
     radial-gradient(1200px 600px at 12% -10%, rgba(185, 107, 231, 0.06), transparent 60%),
     linear-gradient(180deg, #303949 0%, #0c152a 55%);
