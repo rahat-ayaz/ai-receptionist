@@ -11,6 +11,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { nicheConfig } from "@/lib/niche";
+import { MobileNav } from "@/components/dashboard/MobileNav";
 
 // Map a niche config iconKey → lucide component for the dynamic catalog tab.
 const NICHE_ICONS: Record<string, LucideIcon> = {
@@ -86,6 +87,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         { href: "/onboarding", label: "Setup", icon: Settings },
       ];
 
+  const mobileNavItems = profile
+    ? [
+        { href: "/dashboard", label: "Overview", iconKey: "LayoutGrid" },
+        { href: "/dashboard/calls", label: "Calls", iconKey: "Phone" },
+        { href: "/dashboard/bookings", label: "Bookings", iconKey: "CalendarCheck" },
+        { href: "/dashboard/catalog", label: cat.navLabel, iconKey: cat.iconKey || "list" },
+        { href: "/dashboard/knowledge", label: "Knowledge", iconKey: "BookOpen" },
+        { href: "/dashboard/sms-rules", label: "SMS Rules", iconKey: "MessageSquareText" },
+        { href: "/dashboard/settings", label: "Agent & Voice", iconKey: "AudioLines" },
+        { href: "/dashboard/templates", label: "Templates", iconKey: "FileText" },
+        { href: "/billing", label: "Billing", iconKey: "CreditCard" },
+        { href: "/dashboard/account", label: "Account", iconKey: "UserCog" },
+        { href: "/onboarding", label: "Setup", iconKey: "Settings" },
+      ]
+    : [
+        { href: "/onboarding", label: "Setup", iconKey: "Settings" },
+      ];
+
   return (
     <div className="flex min-h-screen">
       {/* Sidebar (desktop) */}
@@ -121,15 +140,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       {/* Mobile top bar */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-[var(--color-slate-line)] px-5 py-3 lg:hidden">
-          <Link href="/dashboard">
-            <Logo size="sm" />
-          </Link>
-          <nav className="flex gap-3 text-sm text-[var(--color-ink-dim)]">
-            <Link href="/dashboard/calls">Calls</Link>
-            <Link href="/billing">Billing</Link>
-          </nav>
-        </header>
+        <MobileNav
+          userName={session.user.name}
+          userEmail={session.user.email}
+          receptionistLine={profile?.twilioNumbers?.[0]?.phoneNumber || null}
+          navItems={mobileNavItems}
+        />
         <main className="min-w-0 flex-1">
           {!hasSubscription && (
             <div className="mx-5 mt-6 sm:mx-8 rounded-lg border border-[var(--color-gold)]/30 bg-[var(--color-gold)]/5 px-4 py-3.5 text-sm text-[var(--color-gold-soft)] flex flex-wrap items-center justify-between gap-3">

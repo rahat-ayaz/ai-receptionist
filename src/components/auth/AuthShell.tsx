@@ -13,8 +13,8 @@ export function AuthShell({
   footer?: React.ReactNode;
 }) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5 py-8">
-      <div className="flex flex-col py-10">
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-start pt-12 md:justify-center md:pt-8 px-5 py-8">
+      <div className="flex flex-col py-4 md:py-10">
         <div className="mb-6 flex justify-center">
           <Link href="/">
             <Logo size="lg" />

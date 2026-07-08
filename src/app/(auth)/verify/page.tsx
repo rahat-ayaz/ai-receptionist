@@ -188,7 +188,7 @@ function VerifyPageContent() {
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 placeholder="+1 (555) 000-0000"
-                className="input pl-9"
+                className="fld pl-9"
               />
             </div>
           </div>
@@ -205,7 +205,7 @@ function VerifyPageContent() {
           <button
             type="submit"
             disabled={loading || (!!note && phoneCode.length < 6)}
-            className="w-full btn btn-primary flex items-center justify-center gap-2"
+            className="w-full btn-gold flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {note ? "Verify phone" : "Send code"}

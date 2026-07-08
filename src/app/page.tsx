@@ -14,21 +14,21 @@ export default function LandingPage() {
   return (
     <main className="mx-auto max-w-6xl px-5 py-6">
       {/* Nav */}
-      <header className="flex items-center justify-between">
-        <Logo />
-        <nav className="flex items-center gap-3 text-sm">
+      <header className="flex items-center justify-between gap-2 py-2">
+        <Logo size="sm" />
+        <nav className="flex items-center gap-2 text-xs sm:gap-3 sm:text-sm">
           <Link href="#pricing" className="hidden text-[var(--color-ink-dim)] hover:text-[var(--color-ink)] sm:block">
             Pricing
           </Link>
           <Link
             href="/dashboard"
-            className="rounded-lg border border-[var(--color-slate-line)] px-3.5 py-2 font-medium hover:border-[var(--color-gold)]/60"
+            className="rounded-lg border border-[var(--color-slate-line)] px-2.5 py-1.5 font-medium hover:border-[var(--color-gold)]/60 sm:px-3.5 sm:py-2"
           >
             Dashboard
           </Link>
           <Link
             href="/register"
-            className="rounded-lg bg-[var(--color-gold)] px-3.5 py-2 font-semibold text-[var(--color-midnight)] hover:brightness-110"
+            className="rounded-lg bg-gradient-to-r from-[var(--color-gold)] to-[#ca8aff] px-2.5 py-1.5 font-semibold text-[var(--color-midnight)] hover:brightness-115 active:scale-[0.97] transition-all sm:px-3.5 sm:py-2 shadow-sm hover:shadow-[0_0_15px_rgba(185,107,231,0.25)]"
           >
             Get started
           </Link>
@@ -36,7 +36,7 @@ export default function LandingPage() {
       </header>
 
       {/* Hero */}
-      <section className="py-20 text-center sm:py-28">
+      <section className="py-16 text-center sm:py-28">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-slate-line)] px-3 py-1 text-xs text-[var(--color-gold-soft)]">
           <Sparkles className="h-3.5 w-3.5" /> Enterprise AI receptionist
         </span>
@@ -49,16 +49,16 @@ export default function LandingPage() {
           A zero-friction AI receptionist that learns your business in seconds, answers every call in a natural
           voice, books appointments, and texts your customers — around the clock.
         </p>
-        <div className="mt-8 flex items-center justify-center gap-3">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 px-4 sm:px-0">
           <Link
             href="/register"
-            className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-gold)] px-5 py-3 font-semibold text-[var(--color-midnight)] hover:brightness-110"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[var(--color-gold)] to-[#ca8aff] px-6 py-3.5 font-semibold text-[var(--color-midnight)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-md hover:shadow-[0_0_20px_rgba(185,107,231,0.3)]"
           >
-            Train your agent <ArrowRight className="h-4 w-4" />
+            Train your agent <ArrowRight className="h-4 w-4 animate-pulse" />
           </Link>
           <Link
             href="/dashboard"
-            className="rounded-lg border border-[var(--color-slate-line)] px-5 py-3 font-medium hover:border-[var(--color-gold)]/60"
+            className="w-full sm:w-auto inline-flex items-center justify-center rounded-lg border border-[var(--color-slate-line)] bg-[var(--color-navy-700)]/30 backdrop-blur-sm px-6 py-3.5 font-medium hover:border-[var(--color-gold)]/60 hover:bg-[var(--color-navy-700)]/60 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
           >
             View dashboard
           </Link>
