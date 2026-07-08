@@ -19,7 +19,7 @@ const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_T
 const PORT = Number(process.env.PORT || process.env.VOICE_BRIDGE_PORT || 3211);
 const SECRET = process.env.VOICE_BRIDGE_SECRET || "";
 const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-2.5-flash-native-audio-latest";
-const APP_URL = process.env.APP_INTERNAL_URL || process.env.BETTER_AUTH_URL || "http://localhost:3210";
+const APP_URL = process.env.APP_INTERNAL_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 

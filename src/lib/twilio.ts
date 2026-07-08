@@ -18,11 +18,12 @@ type SayNode =
  * <Play> of our /api/tts endpoint; otherwise falls back to Twilio's Polly <Say>.
  */
 function speak(node: SayNode, text: string, voiceId?: string | null, _voiceSpeed?: number | null) {
-  if (process.env.GEMINI_API_KEY) {
+  if (process.env.USE_GEMINI_TTS === "true" && process.env.GEMINI_API_KEY) {
     const base = process.env.APP_BASE_URL || process.env.BETTER_AUTH_URL || "";
     const url = `${base}/api/tts?voice=${encodeURIComponent(resolveVoice(voiceId))}&text=${encodeURIComponent(text)}`;
     node.play({}, url);
   } else {
+    // Zero-latency high-quality Amazon Polly Neural voice
     node.say({ voice: "Polly.Joanna-Neural" }, text);
   }
 }

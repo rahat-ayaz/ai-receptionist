@@ -110,12 +110,15 @@ export async function POST(req: NextRequest) {
   }
 
   const settings = profile.agentSettings;
-  const greeting = settings?.greetingMessage || `Thank you for calling ${profile.name}. How can I help you today?`;
+  let greeting = settings?.greetingMessage || `Thank you for calling ${profile.name}. How can I help you today?`;
 
   // ── First turn: greet and open a session ──────────────────────────────────
   if (!speech) {
     // Track the caller by phone number so their history/orders are reattached.
     const customer = await getOrCreateCustomer(profile.id, fromNumber ?? "unknown");
+    if (customer.name) {
+      greeting = `Welcome back, ${customer.name}! How can I help you today?`;
+    }
 
     await prisma.callSession.upsert({
       where: { twilioCallSid: callSid },
@@ -163,7 +166,10 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Conversational turn ───────────────────────────────────────────────────
-  const session = await prisma.callSession.findUnique({ where: { twilioCallSid: callSid } });
+  const session = await prisma.callSession.findUnique({
+    where: { twilioCallSid: callSid },
+    include: { customer: true }
+  });
   if (!session) {
     // Lost the session somehow — restart the greeting flow.
     return twiml(
@@ -210,7 +216,16 @@ export async function POST(req: NextRequest) {
     ruleMatrix: profile.ruleMatrix,
     knowledge: profile.knowledgeBlobs.map((k) => `${k.title}: ${k.data}`),
   };
-  const systemPrompt = buildSystemPrompt(ctx);
+  let systemPrompt = buildSystemPrompt(ctx);
+
+  // Inject returning customer memory rules
+  const customerName = session.customer?.name;
+  const customerEmail = session.customer?.email;
+  if (customerName) {
+    systemPrompt += `\n\n[RETURNING CUSTOMER]: The caller is a returning customer named "${customerName}". Greet them by name (e.g. "Welcome back, ${customerName}!"). Since you already know their name and email (${customerEmail || "not set"}), you do not need to ask for these details when booking/ordering, unless they want to update them.`;
+  } else {
+    systemPrompt += `\n\n[NEW CUSTOMER]: You do not know the caller's name or email. If they schedule an appointment, place an order, or book a slot, you MUST ask for their full name and email address to complete the booking.`;
+  }
 
   let reply: string;
   try {
