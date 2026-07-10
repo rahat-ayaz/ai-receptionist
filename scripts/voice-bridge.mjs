@@ -78,11 +78,11 @@ wss.on("connection", (twilio) => {
         inputAudioTranscription: {},
         outputAudioTranscription: {},
         // End-of-speech tuning: respond sooner after the caller stops talking
-        // instead of waiting out the default ~1s VAD silence window.
+        // than the default ~1s VAD window, but not so eagerly that natural
+        // mid-sentence pauses get treated as end of turn.
         realtimeInputConfig: {
           automaticActivityDetection: {
-            endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
-            silenceDurationMs: 600,
+            silenceDurationMs: 700,
           },
         },
       },

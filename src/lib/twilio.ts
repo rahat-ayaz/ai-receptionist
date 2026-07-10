@@ -17,8 +17,15 @@ type SayNode =
  * Speak `text`. When Gemini is configured, plays a Gemini-synthesized voice via
  * <Play> of our /api/tts endpoint; otherwise falls back to Twilio's Polly <Say>.
  */
-function speak(node: SayNode, text: string, voiceId?: string | null, _voiceSpeed?: number | null) {
-  if (process.env.USE_GEMINI_TTS === "true" && process.env.GEMINI_API_KEY) {
+function speak(
+  node: SayNode,
+  text: string,
+  voiceId?: string | null,
+  _voiceSpeed?: number | null,
+  opts?: { preferGeminiTts?: boolean },
+) {
+  const useGeminiTts = process.env.USE_GEMINI_TTS === "true" || opts?.preferGeminiTts;
+  if (useGeminiTts && process.env.GEMINI_API_KEY) {
     const base = process.env.APP_BASE_URL || process.env.BETTER_AUTH_URL || "";
     const url = `${base}/api/tts?voice=${encodeURIComponent(resolveVoice(voiceId))}&text=${encodeURIComponent(text)}`;
     node.play({}, url);
@@ -117,8 +124,10 @@ export function buildStreamTwiML(
   const vr = new VoiceResponse();
   // Speaking the greeting from TwiML masks the seconds the bridge needs to
   // fetch context and open the Gemini session (pass greeted="1" in params so
-  // the bridge tells the model not to greet a second time).
-  if (greeting) speak(vr, greeting.text, greeting.voiceId, greeting.voiceSpeed);
+  // the bridge tells the model not to greet a second time). Prefer the Gemini
+  // voice so the greeting matches the live agent — Twilio/Vercel cache the
+  // audio by URL, so only the first play per greeting text pays generation.
+  if (greeting) speak(vr, greeting.text, greeting.voiceId, greeting.voiceSpeed, { preferGeminiTts: true });
   const stream = vr.connect().stream({ url: wssUrl });
   for (const [name, value] of Object.entries(params)) stream.parameter({ name, value });
   return vr.toString();
