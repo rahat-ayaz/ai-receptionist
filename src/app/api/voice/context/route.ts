@@ -75,10 +75,16 @@ export async function GET(req: NextRequest) {
     systemInstruction += `\n\n[NEW CUSTOMER]: You do not know the caller's name or email. If they schedule an appointment, place an order, or book a slot, you MUST ask for their full name and email address to complete the booking.`;
   }
 
+  // Mirror the greeting the telephony webhook speaks from TwiML (including the
+  // returning-customer variant) so the bridge can log/reference it accurately.
+  const greeting = customerName
+    ? `Welcome back, ${customerName}! How can I help you today?`
+    : s?.greetingMessage || `Thank you for calling ${profile.name}. How can I help you today?`;
+
   return NextResponse.json({
     systemInstruction,
     voiceId: resolveVoice(s?.voiceId),
-    greeting: s?.greetingMessage || `Thank you for calling ${profile.name}. How can I help you today?`,
+    greeting,
     forwardingNumber: profile.forwardingNumber || "",
     forwardingNumbers: profile.forwardingNumbers || {},
   });

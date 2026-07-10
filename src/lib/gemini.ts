@@ -69,13 +69,22 @@ export interface BusinessContext {
  * Wrap the tenant's business context into a single system instruction that
  * governs every live conversation turn.
  */
+// Cap each injected knowledge blob (scraped sites can run to hundreds of KB);
+// oversized prompts add per-turn latency on every live and fallback reply.
+const KNOWLEDGE_BLOB_CHAR_LIMIT = 8000;
+
 export function buildSystemPrompt(ctx: BusinessContext): string {
   const knowledge = ctx.knowledge.length
-    ? ctx.knowledge.map((k, i) => `[KB-${i + 1}] ${k}`).join("\n\n")
+    ? ctx.knowledge
+        .map((k, i) => {
+          const body = k.length > KNOWLEDGE_BLOB_CHAR_LIMIT ? `${k.slice(0, KNOWLEDGE_BLOB_CHAR_LIMIT)} …[truncated]` : k;
+          return `[KB-${i + 1}] ${body}`;
+        })
+        .join("\n\n")
     : "No additional knowledge base entries provided.";
 
   const ruleMatrix = ctx.ruleMatrix
-    ? JSON.stringify(ctx.ruleMatrix, null, 2)
+    ? JSON.stringify(ctx.ruleMatrix)
     : "None.";
 
   return [
@@ -134,6 +143,9 @@ export async function generateReply(
       systemInstruction,
       temperature: 0.6,
       maxOutputTokens: 80,
+      // 2.5-flash enables dynamic thinking by default, which adds seconds of
+      // dead air per turn — a short spoken reply doesn't need it.
+      thinkingConfig: { thinkingBudget: 0 },
     },
   });
 

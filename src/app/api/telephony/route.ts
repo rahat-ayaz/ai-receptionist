@@ -135,7 +135,9 @@ export async function POST(req: NextRequest) {
     });
 
     if (settings?.recordCalls) {
-      await twilioClient.calls(callSid).recordings.create({
+      // Fire-and-forget: don't hold the TwiML response (and the caller's
+      // pickup) hostage to a Twilio REST round trip.
+      void twilioClient.calls(callSid).recordings.create({
         recordingStatusCallback: `${actionUrl}/recording`,
         trim: "trim-silence",
       }).catch((e) => console.error("[telephony] Failed to start recording:", e));
@@ -145,11 +147,16 @@ export async function POST(req: NextRequest) {
     const wss = process.env.PUBLIC_WSS_URL;
     if (wss) {
       return twiml(
-        buildStreamTwiML(wss, {
-          businessProfileId: profile.id,
-          callSid,
-          callerNumber: fromNumber ?? "unknown",
-        }),
+        buildStreamTwiML(
+          wss,
+          {
+            businessProfileId: profile.id,
+            callSid,
+            callerNumber: fromNumber ?? "unknown",
+            greeted: "1",
+          },
+          { text: greeting, voiceId: settings?.voiceId, voiceSpeed: settings?.voiceSpeed },
+        ),
       );
     }
 

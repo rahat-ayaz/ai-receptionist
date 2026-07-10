@@ -39,16 +39,23 @@ server.listen(PORT, () => {
   console.log(`[voice-bridge] listening on port ${PORT} (model: ${LIVE_MODEL})`);
 });
 
+// ~20ms of caller audio per Twilio media frame → 500 frames ≈ 10s of buffer.
+const MAX_PENDING_FRAMES = 500;
+
 wss.on("connection", (twilio) => {
   let streamSid = null;
   let callSid = null;
   let profileId = null;
+  let greeted = false; // greeting already played from TwiML before the stream opened
   let session = null;
   let startedAt = Date.now();
   let finalized = false;
   const transcript = [];
   let inBuf = "";
   let outBuf = "";
+  // Caller audio that arrives while the Gemini session is still connecting —
+  // buffered and flushed on open so the caller's first words aren't lost.
+  let pendingAudio = [];
 
   async function openGemini() {
     let ctx = { systemInstruction: "You are a helpful phone receptionist. Keep replies short.", voiceId: "Kore" };
@@ -70,12 +77,28 @@ wss.on("connection", (twilio) => {
         systemInstruction: ctx.systemInstruction,
         inputAudioTranscription: {},
         outputAudioTranscription: {},
+        // End-of-speech tuning: respond sooner after the caller stops talking
+        // instead of waiting out the default ~1s VAD silence window.
+        realtimeInputConfig: {
+          automaticActivityDetection: {
+            endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
+            silenceDurationMs: 600,
+          },
+        },
       },
       callbacks: {
         onopen: () => {
-          // Defer greeting trigger to ensure the outer `session` variable is assigned first.
+          // Defer to ensure the outer `session` variable is assigned first.
           setTimeout(() => {
-            if (session) {
+            if (!session) return;
+            if (greeted) {
+              // TwiML already spoke the greeting while we were connecting —
+              // prime the model with that fact without triggering a reply.
+              session.sendClientContent({
+                turns: `You have already greeted the caller with: "${ctx.greeting || "a welcome message"}". Do not greet them again; listen and respond to their request.`,
+                turnComplete: false,
+              });
+            } else {
               session.sendClientContent({
                 turns: "The caller has just connected. Greet them warmly and briefly, then ask how you can help.",
                 turnComplete: true,
@@ -173,6 +196,19 @@ wss.on("connection", (twilio) => {
         },
       },
     });
+
+    // The TwiML greeting never crosses the Gemini stream, so record it here —
+    // the transcript we post at hangup replaces the session's transcript.
+    if (greeted && ctx.greeting) {
+      transcript.push({ role: "agent", text: ctx.greeting, at: new Date(startedAt).toISOString() });
+    }
+
+    // Flush caller audio that arrived while the session was connecting.
+    for (const data of pendingAudio.splice(0)) {
+      try {
+        session.sendRealtimeInput({ audio: { data, mimeType: "audio/pcm;rate=16000" } });
+      } catch { /* session closed mid-flush */ }
+    }
   }
 
   async function finalize() {
@@ -202,18 +238,29 @@ wss.on("connection", (twilio) => {
         const params = msg.start?.customParameters || {};
         profileId = params.businessProfileId;
         callSid = params.callSid;
+        greeted = params.greeted === "1";
         startedAt = Date.now();
         console.log(`[voice-bridge] call started (profile ${profileId}, ${callSid})`);
-        await openGemini();
+        try {
+          await openGemini();
+        } catch (e) {
+          console.error("[voice-bridge] gemini connect failed:", e?.message);
+          if (twilioClient && callSid) {
+            twilioClient.calls(callSid).update({ status: "completed" }).catch(() => {});
+          }
+          await finalize();
+        }
         break;
       }
       case "media": {
-        if (session && msg.media?.payload) {
+        if (!msg.media?.payload) break;
+        const data = twilioToGemini(msg.media.payload);
+        if (session) {
           try {
-            session.sendRealtimeInput({
-              audio: { data: twilioToGemini(msg.media.payload), mimeType: "audio/pcm;rate=16000" },
-            });
-          } catch { /* session not ready / closed */ }
+            session.sendRealtimeInput({ audio: { data, mimeType: "audio/pcm;rate=16000" } });
+          } catch { /* session closed */ }
+        } else if (pendingAudio.length < MAX_PENDING_FRAMES) {
+          pendingAudio.push(data);
         }
         break;
       }

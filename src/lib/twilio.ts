@@ -109,8 +109,16 @@ export function buildReplyTwiML(opts: ReplyOptions): string {
  * Twilio opens a bidirectional audio WebSocket to `wssUrl`, passing the given
  * parameters so the bridge knows which tenant/call it is.
  */
-export function buildStreamTwiML(wssUrl: string, params: Record<string, string>): string {
+export function buildStreamTwiML(
+  wssUrl: string,
+  params: Record<string, string>,
+  greeting?: { text: string; voiceId?: string | null; voiceSpeed?: number | null },
+): string {
   const vr = new VoiceResponse();
+  // Speaking the greeting from TwiML masks the seconds the bridge needs to
+  // fetch context and open the Gemini session (pass greeted="1" in params so
+  // the bridge tells the model not to greet a second time).
+  if (greeting) speak(vr, greeting.text, greeting.voiceId, greeting.voiceSpeed);
   const stream = vr.connect().stream({ url: wssUrl });
   for (const [name, value] of Object.entries(params)) stream.parameter({ name, value });
   return vr.toString();
