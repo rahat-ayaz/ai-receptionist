@@ -49,10 +49,103 @@ setInterval(() => {
   }).catch(() => {});
 }, 4 * 60 * 1000).unref();
 
+// ─── Shared call-control helpers (used by both pipelines) ───────────────────
+
+const CALLER_WANTS_HUMAN = /\b(speak|talk) to (a )?(human|person|someone|representative|agent)\b/i;
+const AGENT_WANTS_TRANSFER = /\b(transfer|connect|forward)( you)?\b/i;
+const AGENT_MENTIONS_REP = /\b(representative|human agent)\b/i;
+const CALLER_GOODBYE = /\b(bye|goodbye|hang up|talk later|see ya)\b/i;
+const AGENT_GOODBYE = /\b(goodbye|bye|have a (great|nice|good) day|have a good one|take care)\b/i;
+
+/** Returns the number to forward to when either side asked for a human, else null. */
+function resolveTransferTarget(callerUtterance, agentReply, ctx) {
+  if (
+    !CALLER_WANTS_HUMAN.test(callerUtterance) &&
+    !AGENT_WANTS_TRANSFER.test(agentReply) &&
+    !AGENT_MENTIONS_REP.test(agentReply)
+  ) return null;
+  let target = ctx.forwardingNumber || "";
+  const searchString = `${callerUtterance} ${agentReply}`.toLowerCase();
+  for (const [dept, num] of Object.entries(ctx.forwardingNumbers || {})) {
+    if (new RegExp(`\\b${dept}\\b`, "i").test(searchString)) { target = num; break; }
+  }
+  return target || null;
+}
+
+function wantsHangup(callerUtterance, agentReply) {
+  return CALLER_GOODBYE.test(callerUtterance) || AGENT_GOODBYE.test(agentReply);
+}
+
+/** Redirect to a human after a delay that lets the spoken reply reach the caller. */
+function transferCall(callSid, targetNumber, delayMs) {
+  if (!twilioClient || !callSid) {
+    console.warn("[voice-bridge] Twilio client or Call SID not available for redirect.");
+    return;
+  }
+  console.log(`[voice-bridge] transfer detected for call ${callSid}. Forwarding to ${targetNumber}`);
+  setTimeout(async () => {
+    try {
+      await twilioClient.calls(callSid).update({
+        twiml: `<Response><Say>One moment while I connect you.</Say><Dial>${targetNumber}</Dial></Response>`,
+      });
+    } catch (e) {
+      console.error("[voice-bridge] call redirect failed:", e.message);
+    }
+  }, delayMs);
+}
+
+/** Hang up after a delay that lets the spoken goodbye reach the caller. */
+function hangupCall(callSid, delayMs) {
+  if (!twilioClient || !callSid) return;
+  console.log(`[voice-bridge] Goodbye/hangup detected. Hanging up call ${callSid}`);
+  setTimeout(async () => {
+    try {
+      await twilioClient.calls(callSid).update({ status: "completed" });
+    } catch (e) {
+      console.error("[voice-bridge] call hangup failed:", e.message);
+    }
+  }, delayMs);
+}
+
+async function postTranscript(callSid, transcript, startedAt) {
+  if (!callSid) return;
+  const durationSeconds = Math.round((Date.now() - startedAt) / 1000);
+  try {
+    await fetch(`${APP_URL}/api/voice/transcript`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${SECRET}` },
+      body: JSON.stringify({ callSid, transcript, durationSeconds }),
+    });
+  } catch (e) {
+    console.error("[voice-bridge] transcript post failed:", e.message);
+  }
+}
+
+async function fetchContext(profileId, callSid) {
+  let ctx = { systemInstruction: "You are a helpful phone receptionist. Keep replies short.", voiceId: "Kore", greeting: "" };
+  try {
+    const r = await fetch(`${APP_URL}/api/voice/context?profileId=${encodeURIComponent(profileId)}&callSid=${encodeURIComponent(callSid || "")}`, {
+      headers: { Authorization: `Bearer ${SECRET}` },
+    });
+    if (r.ok) ctx = await r.json();
+    else console.error("[voice-bridge] context", r.status);
+  } catch (e) {
+    console.error("[voice-bridge] context fetch failed:", e.message);
+  }
+  return ctx;
+}
+
+// Two pipelines share this server: Twilio Media Streams (audio ↔ Gemini Live)
+// on the root path, and Twilio ConversationRelay (text ↔ Gemini) on /relay.
+wss.on("connection", (ws, req) => {
+  if ((req.url || "").startsWith("/relay")) return handleRelay(ws);
+  return handleLive(ws);
+});
+
 // ~20ms of caller audio per Twilio media frame → 500 frames ≈ 10s of buffer.
 const MAX_PENDING_FRAMES = 500;
 
-wss.on("connection", (twilio) => {
+function handleLive(twilio) {
   let streamSid = null;
   let callSid = null;
   let profileId = null;
@@ -68,16 +161,7 @@ wss.on("connection", (twilio) => {
   let pendingAudio = [];
 
   async function openGemini() {
-    let ctx = { systemInstruction: "You are a helpful phone receptionist. Keep replies short.", voiceId: "Kore" };
-    try {
-      const r = await fetch(`${APP_URL}/api/voice/context?profileId=${encodeURIComponent(profileId)}&callSid=${encodeURIComponent(callSid || "")}`, {
-        headers: { Authorization: `Bearer ${SECRET}` },
-      });
-      if (r.ok) ctx = await r.json();
-      else console.error("[voice-bridge] context", r.status);
-    } catch (e) {
-      console.error("[voice-bridge] context fetch failed:", e.message);
-    }
+    const ctx = await fetchContext(profileId, callSid);
 
     session = await ai.live.connect({
       model: LIVE_MODEL,
@@ -136,56 +220,11 @@ wss.on("connection", (twilio) => {
             if (callerUtterance) transcript.push({ role: "caller", text: callerUtterance, at });
             if (agentReply) transcript.push({ role: "agent", text: agentReply, at });
 
-            // Check if transfer is requested by caller or initiated by agent due to lack of info.
-            const callerWantsHuman = /\b(speak|talk) to (a )?(human|person|someone|representative|agent)\b/i.test(callerUtterance);
-            const agentWantsTransfer = /\b(transfer|connect|forward)( you)?\b/i.test(agentReply) || /\b(representative|human agent)\b/i.test(agentReply);
-
-            if (callerWantsHuman || agentWantsTransfer) {
-              let targetNumber = ctx.forwardingNumber || "";
-              const depts = ctx.forwardingNumbers || {};
-              const searchString = (callerUtterance + " " + agentReply).toLowerCase();
-              for (const [dept, num] of Object.entries(depts)) {
-                if (new RegExp(`\\b${dept}\\b`, "i").test(searchString)) {
-                  targetNumber = num;
-                  break;
-                }
-              }
-
-              if (targetNumber) {
-                console.log(`[voice-bridge] transfer detected for call ${callSid}. Forwarding to ${targetNumber}`);
-                if (twilioClient && callSid) {
-                  // Give a short delay to let the spoken agent reply reach the caller before dialing.
-                  setTimeout(async () => {
-                    try {
-                      await twilioClient.calls(callSid).update({
-                        twiml: `<Response><Say>One moment while I connect you.</Say><Dial>${targetNumber}</Dial></Response>`
-                      });
-                    } catch (e) {
-                      console.error("[voice-bridge] call redirect failed:", e.message);
-                    }
-                  }, 2000);
-                } else {
-                  console.warn("[voice-bridge] Twilio client or Call SID not available for redirect.");
-                }
-              }
-            } else {
-              // Check if caller or agent wants to end the call (saying goodbye / bye)
-              const callerWantsHangup = /\b(bye|goodbye|hang up|talk later|see ya)\b/i.test(callerUtterance);
-              const agentWantsHangup = /\b(goodbye|bye|have a (great|nice|good) day|have a good one|take care)\b/i.test(agentReply);
-
-              if (callerWantsHangup || agentWantsHangup) {
-                console.log(`[voice-bridge] Goodbye/hangup detected. Hanging up call ${callSid}`);
-                if (twilioClient && callSid) {
-                  // Give a 3-second delay to let the spoken agent reply reach the caller before hanging up.
-                  setTimeout(async () => {
-                    try {
-                      await twilioClient.calls(callSid).update({ status: "completed" });
-                    } catch (e) {
-                      console.error("[voice-bridge] call hangup failed:", e.message);
-                    }
-                  }, 3000);
-                }
-              }
+            const targetNumber = resolveTransferTarget(callerUtterance, agentReply, ctx);
+            if (targetNumber) {
+              transferCall(callSid, targetNumber, 2000);
+            } else if (wantsHangup(callerUtterance, agentReply)) {
+              hangupCall(callSid, 3000);
             }
 
             inBuf = "";
@@ -225,17 +264,7 @@ wss.on("connection", (twilio) => {
     if (finalized) return;
     finalized = true;
     try { session?.close(); } catch {}
-    if (!callSid) return;
-    const durationSeconds = Math.round((Date.now() - startedAt) / 1000);
-    try {
-      await fetch(`${APP_URL}/api/voice/transcript`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SECRET}` },
-        body: JSON.stringify({ callSid, transcript, durationSeconds }),
-      });
-    } catch (e) {
-      console.error("[voice-bridge] transcript post failed:", e.message);
-    }
+    await postTranscript(callSid, transcript, startedAt);
   }
 
   twilio.on("message", async (raw) => {
@@ -282,4 +311,115 @@ wss.on("connection", (twilio) => {
 
   twilio.on("close", () => finalize());
   twilio.on("error", () => finalize());
-});
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  ConversationRelay pipeline — Twilio handles STT/TTS (instantly
+//  interruptible at their edge); we stream Gemini *text* tokens back.
+//  Enabled per call via USE_CONVERSATION_RELAY=true on the app.
+// ════════════════════════════════════════════════════════════════════════════
+
+const TEXT_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+
+function handleRelay(ws) {
+  let callSid = null;
+  let profileId = null;
+  let ctx = { systemInstruction: "You are a helpful phone receptionist. Keep replies short.", greeting: "" };
+  let startedAt = Date.now();
+  let finalized = false;
+  const transcript = [];
+  const history = []; // Gemini `contents` mirror of the transcript
+  let genSeq = 0; // bumped on interrupt so in-flight streaming stops
+
+  async function finalize() {
+    if (finalized) return;
+    finalized = true;
+    await postTranscript(callSid, transcript, startedAt);
+  }
+
+  ws.on("message", async (raw) => {
+    let msg;
+    try { msg = JSON.parse(raw.toString()); } catch { return; }
+
+    switch (msg.type) {
+      case "setup": {
+        callSid = msg.callSid;
+        profileId = msg.customParameters?.businessProfileId;
+        startedAt = Date.now();
+        console.log(`[voice-bridge/relay] call started (profile ${profileId}, ${callSid})`);
+        ctx = await fetchContext(profileId, callSid);
+        // Twilio speaks the welcomeGreeting itself; mirror it in the record.
+        if (ctx.greeting) {
+          transcript.push({ role: "agent", text: ctx.greeting, at: new Date().toISOString() });
+          history.push({ role: "model", parts: [{ text: ctx.greeting }] });
+        }
+        break;
+      }
+
+      case "prompt": {
+        if (msg.last === false) break; // wait for the complete utterance
+        const utterance = (msg.voicePrompt || "").trim();
+        if (!utterance) break;
+        transcript.push({ role: "caller", text: utterance, at: new Date().toISOString() });
+
+        const myGen = ++genSeq;
+        let reply = "";
+        try {
+          const stream = await ai.models.generateContentStream({
+            model: TEXT_MODEL,
+            contents: [...history, { role: "user", parts: [{ text: utterance }] }],
+            config: {
+              systemInstruction: ctx.systemInstruction,
+              temperature: 0.6,
+              maxOutputTokens: 120,
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          });
+          for await (const chunk of stream) {
+            if (genSeq !== myGen) break; // caller barged in — stop talking
+            const token = chunk.text;
+            if (token) {
+              reply += token;
+              ws.send(JSON.stringify({ type: "text", token, last: false }));
+            }
+          }
+          if (genSeq === myGen) ws.send(JSON.stringify({ type: "text", token: "", last: true }));
+        } catch (e) {
+          console.error("[voice-bridge/relay] gemini error:", e?.message);
+          if (genSeq === myGen) {
+            ws.send(JSON.stringify({ type: "text", token: "I'm sorry, could you repeat that?", last: true }));
+          }
+        }
+        if (!reply) break;
+
+        history.push({ role: "user", parts: [{ text: utterance }] }, { role: "model", parts: [{ text: reply }] });
+        transcript.push({ role: "agent", text: reply, at: new Date().toISOString() });
+
+        const targetNumber = resolveTransferTarget(utterance, reply, ctx);
+        if (targetNumber) {
+          transferCall(callSid, targetNumber, 2000);
+        } else if (wantsHangup(utterance, reply)) {
+          hangupCall(callSid, 3000);
+        }
+        break;
+      }
+
+      case "interrupt": {
+        genSeq++; // abort any in-flight token streaming
+        // Keep the transcript faithful to what the caller actually heard.
+        if (msg.utteranceUntilInterrupt) {
+          const lastAgent = [...transcript].reverse().find((t) => t.role === "agent");
+          if (lastAgent) lastAgent.text = `${msg.utteranceUntilInterrupt} …[interrupted]`;
+        }
+        break;
+      }
+
+      case "error":
+        console.error("[voice-bridge/relay] twilio error:", msg.description);
+        break;
+    }
+  });
+
+  ws.on("close", () => finalize());
+  ws.on("error", () => finalize());
+}

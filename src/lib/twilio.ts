@@ -125,6 +125,36 @@ export function buildStreamTwiML(
   return vr.toString();
 }
 
+/**
+ * Hand the call to Twilio ConversationRelay: Twilio performs streaming STT and
+ * TTS at its edge (instantly interruptible) and exchanges *text* with our
+ * bridge over `wssUrl`/relay — the lowest-latency architecture available here.
+ * The greeting is spoken immediately by Twilio as the welcome message, in the
+ * same TTS voice as the rest of the call.
+ */
+export function buildRelayTwiML(
+  wssUrl: string,
+  params: Record<string, string>,
+  opts: { greeting: string },
+): string {
+  const vr = new VoiceResponse();
+  const relay = vr.connect().conversationRelay({
+    url: `${wssUrl.replace(/\/$/, "")}/relay`,
+    welcomeGreeting: opts.greeting,
+    welcomeGreetingInterruptible: "speech",
+    interruptible: "speech",
+    // Optional overrides, e.g. ttsProvider "ElevenLabs" + a voice id.
+    ...(process.env.CONVERSATION_RELAY_TTS_PROVIDER
+      ? { ttsProvider: process.env.CONVERSATION_RELAY_TTS_PROVIDER }
+      : {}),
+    ...(process.env.CONVERSATION_RELAY_VOICE
+      ? { voice: process.env.CONVERSATION_RELAY_VOICE }
+      : {}),
+  });
+  for (const [name, value] of Object.entries(params)) relay.parameter({ name, value });
+  return vr.toString();
+}
+
 /** Forward the call to a human fallback number. */
 export function buildForwardTwiML(
   forwardTo: string,

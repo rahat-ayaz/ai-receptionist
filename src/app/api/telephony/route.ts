@@ -7,6 +7,7 @@ import {
   buildForwardTwiML,
   buildRejectTwiML,
   buildStreamTwiML,
+  buildRelayTwiML,
   twilioClient,
 } from "@/lib/twilio";
 import {
@@ -145,6 +146,20 @@ export async function POST(req: NextRequest) {
 
     // Preferred path: hand the call to the Gemini Live bridge (real-time voice).
     const wss = process.env.PUBLIC_WSS_URL;
+    if (wss && process.env.USE_CONVERSATION_RELAY === "true") {
+      // Lowest-latency path: Twilio edge STT/TTS + Gemini text streaming.
+      return twiml(
+        buildRelayTwiML(
+          wss,
+          {
+            businessProfileId: profile.id,
+            callSid,
+            callerNumber: fromNumber ?? "unknown",
+          },
+          { greeting },
+        ),
+      );
+    }
     if (wss) {
       return twiml(
         buildStreamTwiML(
