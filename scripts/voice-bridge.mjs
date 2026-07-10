@@ -18,7 +18,9 @@ const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_T
 
 const PORT = Number(process.env.PORT || process.env.VOICE_BRIDGE_PORT || 3211);
 const SECRET = process.env.VOICE_BRIDGE_SECRET || "";
-const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-2.5-flash-native-audio-latest";
+// Half-cascade Live model: noticeably lower response latency than the
+// native-audio models at slight cost in vocal expressiveness.
+const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-live-2.5-flash-preview";
 const APP_URL = process.env.APP_INTERNAL_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -38,6 +40,14 @@ const wss = new WebSocketServer({ server });
 server.listen(PORT, () => {
   console.log(`[voice-bridge] listening on port ${PORT} (model: ${LIVE_MODEL})`);
 });
+
+// Keep the app's voice endpoints warm so the context fetch at call start
+// doesn't pay a serverless cold start (adds seconds on hobby-tier Vercel).
+setInterval(() => {
+  fetch(`${APP_URL}/api/voice/context?ping=1`, {
+    headers: { Authorization: `Bearer ${SECRET}` },
+  }).catch(() => {});
+}, 4 * 60 * 1000).unref();
 
 // ~20ms of caller audio per Twilio media frame → 500 frames ≈ 10s of buffer.
 const MAX_PENDING_FRAMES = 500;
