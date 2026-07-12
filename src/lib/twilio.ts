@@ -135,21 +135,24 @@ export function buildStreamTwiML(
 export function buildRelayTwiML(
   wssUrl: string,
   params: Record<string, string>,
-  opts: { greeting: string },
+  opts: { greeting: string; voiceId?: string | null },
 ): string {
+  // The tenant's dashboard voice picker lists Gemini voice names; Google Cloud
+  // TTS ships the same voice family as Chirp3-HD, so the ConversationRelay
+  // call keeps the exact voice the tenant chose. Env vars override both.
+  const ttsProvider = process.env.CONVERSATION_RELAY_TTS_PROVIDER || "Google";
+  const voice =
+    process.env.CONVERSATION_RELAY_VOICE ||
+    (ttsProvider === "Google" ? `en-US-Chirp3-HD-${resolveVoice(opts.voiceId)}` : undefined);
+
   const vr = new VoiceResponse();
   const relay = vr.connect().conversationRelay({
     url: `${wssUrl.replace(/\/$/, "")}/relay`,
     welcomeGreeting: opts.greeting,
     welcomeGreetingInterruptible: "speech",
     interruptible: "speech",
-    // Optional overrides, e.g. ttsProvider "ElevenLabs" + a voice id.
-    ...(process.env.CONVERSATION_RELAY_TTS_PROVIDER
-      ? { ttsProvider: process.env.CONVERSATION_RELAY_TTS_PROVIDER }
-      : {}),
-    ...(process.env.CONVERSATION_RELAY_VOICE
-      ? { voice: process.env.CONVERSATION_RELAY_VOICE }
-      : {}),
+    ttsProvider,
+    ...(voice ? { voice } : {}),
   });
   for (const [name, value] of Object.entries(params)) relay.parameter({ name, value });
   return vr.toString();

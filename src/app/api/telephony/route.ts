@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
             callSid,
             callerNumber: fromNumber ?? "unknown",
           },
-          { greeting },
+          { greeting, voiceId: settings?.voiceId },
         ),
       );
     }
