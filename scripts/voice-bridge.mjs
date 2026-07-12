@@ -321,6 +321,18 @@ function handleLive(twilio) {
 
 const TEXT_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
+/** One quick retry on rate-limit errors — free/low-tier keys throttle in bursts. */
+async function generateStreamWithRetry(request) {
+  try {
+    return await ai.models.generateContentStream(request);
+  } catch (e) {
+    if (!String(e?.message || "").includes("429")) throw e;
+    console.warn("[voice-bridge/relay] 429 from Gemini — retrying once");
+    await new Promise((r) => setTimeout(r, 700));
+    return ai.models.generateContentStream(request);
+  }
+}
+
 function handleRelay(ws) {
   let callSid = null;
   let profileId = null;
@@ -365,7 +377,7 @@ function handleRelay(ws) {
         const myGen = ++genSeq;
         let reply = "";
         try {
-          const stream = await ai.models.generateContentStream({
+          const stream = await generateStreamWithRetry({
             model: TEXT_MODEL,
             contents: [...history, { role: "user", parts: [{ text: utterance }] }],
             config: {
