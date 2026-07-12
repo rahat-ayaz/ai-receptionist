@@ -153,6 +153,14 @@ export function buildRelayTwiML(
     interruptible: "speech",
     ttsProvider,
     ...(voice ? { voice } : {}),
+    // Optional STT tuning, e.g. provider "Deepgram" + speechModel "nova-3-general"
+    // for faster end-of-utterance detection than the default Google STT.
+    ...(process.env.CONVERSATION_RELAY_TRANSCRIPTION_PROVIDER
+      ? { transcriptionProvider: process.env.CONVERSATION_RELAY_TRANSCRIPTION_PROVIDER }
+      : {}),
+    ...(process.env.CONVERSATION_RELAY_SPEECH_MODEL
+      ? { speechModel: process.env.CONVERSATION_RELAY_SPEECH_MODEL }
+      : {}),
   });
   for (const [name, value] of Object.entries(params)) relay.parameter({ name, value });
   return vr.toString();

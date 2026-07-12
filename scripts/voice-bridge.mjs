@@ -381,7 +381,9 @@ function handleRelay(ws) {
             model: TEXT_MODEL,
             contents: [...history, { role: "user", parts: [{ text: utterance }] }],
             config: {
-              systemInstruction: ctx.systemInstruction,
+              systemInstruction:
+                `${ctx.systemInstruction}\n\nYour reply is spoken aloud over the phone the moment you write it. ` +
+                `Answer in one or two short sentences, never lists or headings, and ask at most one question at a time.`,
               temperature: 0.6,
               maxOutputTokens: 120,
               thinkingConfig: { thinkingBudget: 0 },
