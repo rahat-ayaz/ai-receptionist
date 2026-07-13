@@ -154,21 +154,59 @@ function PasswordCard() {
   const [next, setNext] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ k: "ok" | "err"; t: string } | null>(null);
+  // null = still checking; false = OAuth-only account with no password yet.
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/list-accounts")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((accounts: { providerId?: string; provider?: string }[]) =>
+        setHasPassword(accounts.some((a) => (a.providerId ?? a.provider) === "credential")),
+      )
+      .catch(() => setHasPassword(true));
+  }, []);
+
   async function change() {
     setBusy(true); setMsg(null);
+    if (hasPassword === false) {
+      // Social-login account without a password — set the first one.
+      const res = await fetch("/api/profile/set-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setBusy(false);
+      if (!res.ok) setMsg({ k: "err", t: data.error || "Could not set password." });
+      else { setNext(""); setHasPassword(true); setMsg({ k: "ok", t: "Password set — you can now also sign in with email + password." }); }
+      return;
+    }
     const { error } = await authClient.changePassword({ currentPassword: cur, newPassword: next, revokeOtherSessions: true });
     setBusy(false);
     if (error) setMsg({ k: "err", t: error.message || "Could not change password." });
     else { setCur(""); setNext(""); setMsg({ k: "ok", t: "Password changed." }); }
   }
+
   return (
     <Card icon={<Lock className="h-4 w-4 text-[var(--color-gold)]" />} title="Password">
+      {hasPassword === false && (
+        <p className="mb-3 text-xs text-[var(--color-ink-dim)]">
+          This account signs in with a social provider and has no password yet. Set one to also
+          enable email + password sign-in.
+        </p>
+      )}
       <div className="space-y-3">
-        <input className="fld" type="password" value={cur} onChange={(e) => setCur(e.target.value)} placeholder="Current password" />
+        {hasPassword !== false && (
+          <input className="fld" type="password" value={cur} onChange={(e) => setCur(e.target.value)} placeholder="Current password" />
+        )}
         <input className="fld" type="password" minLength={8} value={next} onChange={(e) => setNext(e.target.value)} placeholder="New password (min 8 chars)" />
       </div>
-      <button onClick={change} disabled={busy || !cur || next.length < 8} className="btn-gold mt-4 !w-auto px-4">
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Change password
+      <button
+        onClick={change}
+        disabled={busy || hasPassword === null || (hasPassword !== false && !cur) || next.length < 8}
+        className="btn-gold mt-4 !w-auto px-4"
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {hasPassword === false ? "Set password" : "Change password"}
       </button>
       {msg && <Note kind={msg.k}>{msg.t}</Note>}
     </Card>
