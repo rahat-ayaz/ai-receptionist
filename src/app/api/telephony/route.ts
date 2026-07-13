@@ -18,6 +18,7 @@ import {
 } from "@/lib/gemini";
 import { dispatchTriggerSms } from "@/lib/sms-rules";
 import { getOrCreateCustomer } from "@/lib/bookings";
+import { isComplimentaryUser } from "@/lib/billing";
 
 // Twilio webhooks are POST form-encoded and must never be statically cached.
 export const dynamic = "force-dynamic";
@@ -87,6 +88,7 @@ export async function POST(req: NextRequest) {
           user: {
             select: {
               createdAt: true,
+              email: true,
               subscription: true,
             },
           },
@@ -102,7 +104,10 @@ export async function POST(req: NextRequest) {
   const profile = number.businessProfile;
   const user = profile.user;
 
-  const hasSubscription = user?.subscription && user.subscription.status !== "CANCELED";
+  // Complimentary/test accounts (TEST_ACCOUNT_EMAILS) never expire.
+  const hasSubscription =
+    (user?.subscription && user.subscription.status !== "CANCELED") ||
+    isComplimentaryUser(user?.email);
   const trialEndsAt = new Date((user?.createdAt || new Date()).getTime() + 7 * 24 * 60 * 60 * 1000);
   const isTrialActive = new Date() < trialEndsAt;
 

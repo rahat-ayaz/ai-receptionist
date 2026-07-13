@@ -3,6 +3,21 @@ import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { PLANS, tierFromPriceId } from "@/lib/plans";
 
+// ─── Test / complimentary accounts ──────────────────────────────────────────
+
+/**
+ * Emails exempt from trial expiry and subscription gating — internal test
+ * and demo accounts. Comma-separated in the TEST_ACCOUNT_EMAILS env var.
+ */
+export function isComplimentaryUser(email?: string | null): boolean {
+  if (!email) return false;
+  return (process.env.TEST_ACCOUNT_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(email.toLowerCase());
+}
+
 // ─── Stripe subscription status → our enum ──────────────────────────────────
 const SUB_STATUS_MAP: Record<string, "ACTIVE" | "PAST_DUE" | "CANCELED" | "UNPAID" | "INCOMPLETE"> = {
   active: "ACTIVE",

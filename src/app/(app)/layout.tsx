@@ -11,6 +11,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { nicheConfig } from "@/lib/niche";
+import { isComplimentaryUser } from "@/lib/billing";
 import { MobileNav } from "@/components/dashboard/MobileNav";
 
 // Map a niche config iconKey → lucide component for the dynamic catalog tab.
@@ -52,7 +53,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   });
 
   const profile = user?.businessProfile;
-  const hasSubscription = user?.subscription && user.subscription.status !== "CANCELED";
+  // Complimentary/test accounts (TEST_ACCOUNT_EMAILS) never expire.
+  const hasSubscription =
+    (user?.subscription && user.subscription.status !== "CANCELED") ||
+    isComplimentaryUser(session.user.email);
   const trialEndsAt = new Date((user?.createdAt || session.user.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000);
   const isTrialActive = new Date() < trialEndsAt;
   const trialDaysRemaining = Math.max(0, Math.ceil((trialEndsAt.getTime() - new Date().getTime()) / (24 * 60 * 60 * 1000)));
