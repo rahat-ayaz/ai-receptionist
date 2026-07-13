@@ -55,25 +55,29 @@ body {
   box-shadow: 0 0 0 1px rgba(185, 107, 231, 0.25), 0 8px 40px -12px rgba(185, 107, 231, 0.35);
 }
 
-/* Auth + form controls */
-.fld {
-  width: 100%;
-  border-radius: 8px;
-  border: 1px solid var(--color-slate-line);
-  background: rgba(12, 21, 42, 0.6);
-  padding: 0.7rem 0.85rem;
-  font-size: 0.9rem;
-  color: var(--color-ink);
-  outline: none;
-  transition: border-color 0.15s ease;
-}
-select.fld {
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239aa6bf' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
-  background-position: right 0.75rem center;
-  background-repeat: no-repeat;
-  background-size: 1.25rem;
-  padding-right: 2.2rem;
+/* Auth + form controls — inside @layer components so Tailwind utility
+   classes (e.g. pl-9 on inputs with a leading icon) can override them;
+   un-layered CSS would always beat layered utilities in Tailwind v4. */
+@layer components {
+  .fld {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--color-slate-line);
+    background: rgba(12, 21, 42, 0.6);
+    padding: 0.7rem 0.85rem;
+    font-size: 0.9rem;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  select.fld {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239aa6bf' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25rem;
+    padding-right: 2.2rem;
+  }
 }
 input[type="datetime-local"] {
   accent-color: #8050A8;
