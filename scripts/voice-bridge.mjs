@@ -19,8 +19,9 @@ const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_T
 const PORT = Number(process.env.PORT || process.env.VOICE_BRIDGE_PORT || 3211);
 const SECRET = process.env.VOICE_BRIDGE_SECRET || "";
 // Half-cascade Live model: noticeably lower response latency than the
-// native-audio models at slight cost in vocal expressiveness.
-const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-live-2.5-flash-preview";
+// native-audio models at slight cost in vocal expressiveness. 2.5-generation
+// models are closed to newly created Google projects, so default to 3.x.
+const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-3.1-flash-live-preview";
 const APP_URL = process.env.APP_INTERNAL_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -319,17 +320,30 @@ function handleLive(twilio) {
 //  Enabled per call via USE_CONVERSATION_RELAY=true on the app.
 // ════════════════════════════════════════════════════════════════════════════
 
-const TEXT_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const TEXT_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+const FALLBACK_TEXT_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.1-flash-lite";
 
-/** One quick retry on rate-limit errors — free/low-tier keys throttle in bursts. */
+// Overloaded models don't just error (429/503) — they can hang for 15s+,
+// which is an eternity of dead air on a phone call. Give the primary model a
+// short window to start streaming, then cut to the fallback model.
+const PRIMARY_MODEL_TIMEOUT_MS = 4000;
+
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`no response within ${ms}ms`)), ms);
+    promise.then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); },
+    );
+  });
+}
+
 async function generateStreamWithRetry(request) {
   try {
-    return await ai.models.generateContentStream(request);
+    return await withTimeout(ai.models.generateContentStream(request), PRIMARY_MODEL_TIMEOUT_MS);
   } catch (e) {
-    if (!String(e?.message || "").includes("429")) throw e;
-    console.warn("[voice-bridge/relay] 429 from Gemini — retrying once");
-    await new Promise((r) => setTimeout(r, 700));
-    return ai.models.generateContentStream(request);
+    console.warn(`[voice-bridge/relay] ${request.model} unavailable (${String(e?.message || "").slice(0, 80)}) — falling back to ${FALLBACK_TEXT_MODEL}`);
+    return ai.models.generateContentStream({ ...request, model: FALLBACK_TEXT_MODEL });
   }
 }
 

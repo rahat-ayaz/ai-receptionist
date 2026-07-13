@@ -4,8 +4,38 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 export const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? "" });
 
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+// 2.5-generation models are closed to newly created Google projects, so the
+// defaults track the 3.x generation. The fallback absorbs 429/503 spikes.
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.1-flash-lite";
 export const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || "gemini-3.1-flash-tts-preview";
+
+// Overloaded models can hang rather than fail — cap the primary attempt so
+// callers (and Twilio's webhook timeout) never wait on a stuck request.
+const PRIMARY_MODEL_TIMEOUT_MS = 5000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`no response within ${ms}ms`)), ms);
+    promise.then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); },
+    );
+  });
+}
+
+/** generateContent on the primary model, falling back once if it's unavailable. */
+async function generateWithFallback(req: { contents: unknown; config?: unknown }) {
+  try {
+    return await withTimeout(
+      gemini.models.generateContent({ model: GEMINI_MODEL, ...(req as object) } as Parameters<typeof gemini.models.generateContent>[0]),
+      PRIMARY_MODEL_TIMEOUT_MS,
+    );
+  } catch (err) {
+    console.warn(`[gemini] ${GEMINI_MODEL} failed (${(err as Error)?.message?.slice(0, 80)}), retrying with ${GEMINI_FALLBACK_MODEL}`);
+    return gemini.models.generateContent({ model: GEMINI_FALLBACK_MODEL, ...(req as object) } as Parameters<typeof gemini.models.generateContent>[0]);
+  }
+}
 
 // ─── Text-to-speech (Gemini native voices) ──────────────────────────────────
 
@@ -136,15 +166,14 @@ export async function generateReply(
     },
   ];
 
-  const res = await gemini.models.generateContent({
-    model: GEMINI_MODEL,
+  const res = await generateWithFallback({
     contents,
     config: {
       systemInstruction,
       temperature: 0.6,
       maxOutputTokens: 80,
-      // 2.5-flash enables dynamic thinking by default, which adds seconds of
-      // dead air per turn — a short spoken reply doesn't need it.
+      // Dynamic thinking adds seconds of dead air per turn — a short spoken
+      // reply doesn't need it.
       thinkingConfig: { thinkingBudget: 0 },
     },
   });
@@ -250,8 +279,7 @@ export async function analyzeCall(
     .map((t) => `${t.role === "caller" ? "Caller" : "Agent"}: ${t.text}`)
     .join("\n");
 
-  const res = await gemini.models.generateContent({
-    model: GEMINI_MODEL,
+  const res = await generateWithFallback({
     contents: [
       {
         role: "user",
@@ -292,8 +320,7 @@ export async function analyzeCall(
  * into a structured "enterprise rule matrix" during onboarding.
  */
 export async function distillRuleMatrix(rawText: string): Promise<Record<string, unknown>> {
-  const res = await gemini.models.generateContent({
-    model: GEMINI_MODEL,
+  const res = await generateWithFallback({
     contents: [
       {
         role: "user",
