@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Mail, Phone, CheckCircle2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
@@ -102,6 +103,10 @@ function VerifyPageContent() {
     }
   }
 
+  // The phone belongs to an existing account (e.g. an expired trial) — the
+  // path forward is signing in, not re-registering.
+  const phoneAlreadyRegistered = /exist/i.test(error);
+
   async function verifyPhone(e: React.FormEvent) {
     e.preventDefault();
     if (!phoneCode || phoneCode.length < 6) {
@@ -119,7 +124,10 @@ function VerifyPageContent() {
     setLoading(false);
 
     if (res.error) {
-      setError(res.error.message || "Invalid code.");
+      const msg = res.error.message || "Invalid code.";
+      setError(msg);
+      // Don't leave a stale "code sent" note under an account-conflict error.
+      if (/exist/i.test(msg)) setNote("");
     } else {
       setStep("done");
       await refetch();
@@ -146,7 +154,26 @@ function VerifyPageContent() {
             : "You will be redirected shortly."
       }
     >
-      {error && <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/20 p-3.5 text-sm text-red-400">{error}</div>}
+      {error && (
+        <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/20 p-3.5 text-sm text-red-400">
+          {error}
+          {phoneAlreadyRegistered && (
+            <>
+              <p className="mt-2 text-[var(--color-ink-dim)]">
+                This number is already linked to a CAPRO account. If it&apos;s yours, sign in with that
+                account instead — if its trial has expired, you&apos;ll be taken straight to billing to
+                reactivate it.
+              </p>
+              <Link
+                href="/login"
+                className="mt-2 inline-block font-semibold text-[var(--color-gold)] hover:underline"
+              >
+                Sign in to your account →
+              </Link>
+            </>
+          )}
+        </div>
+      )}
       {note && <div className="mb-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3.5 text-sm text-emerald-400">{note}</div>}
 
       {step === "email" && (
