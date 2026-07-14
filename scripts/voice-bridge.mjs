@@ -18,10 +18,11 @@ const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_T
 
 const PORT = Number(process.env.PORT || process.env.VOICE_BRIDGE_PORT || 3211);
 const SECRET = process.env.VOICE_BRIDGE_SECRET || "";
-// Half-cascade Live model: noticeably lower response latency than the
-// native-audio models at slight cost in vocal expressiveness. 2.5-generation
-// models are closed to newly created Google projects, so default to 3.x.
-const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-3.1-flash-live-preview";
+// Native-audio Live model: supports the FULL Gemini voice catalog so the
+// tenant's dashboard pick is honored exactly on calls (product decision —
+// voice fidelity over the half-cascade model's lower latency). Verified
+// working with new-generation API keys despite the 2.5 text-model closure.
+const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-2.5-flash-native-audio-latest";
 const APP_URL = process.env.APP_INTERNAL_URL || process.env.BETTER_AUTH_URL || "http://localhost:3000";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
