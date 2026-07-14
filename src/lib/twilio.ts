@@ -125,6 +125,12 @@ export function buildStreamTwiML(
   return vr.toString();
 }
 
+// Chirp3-HD voices Twilio's Google TTS integration actually supports; newer
+// Gemini-only voices (Sulafat, Achird, Gacrux, …) are rejected mid-call.
+const RELAY_SUPPORTED_GOOGLE_VOICES = new Set([
+  "Aoede", "Charon", "Fenrir", "Kore", "Leda", "Orus", "Puck", "Zephyr",
+]);
+
 /**
  * Hand the call to Twilio ConversationRelay: Twilio performs streaming STT and
  * TTS at its edge (instantly interruptible) and exchanges *text* with our
@@ -139,11 +145,16 @@ export function buildRelayTwiML(
 ): string {
   // The tenant's dashboard voice picker lists Gemini voice names; Google Cloud
   // TTS ships the same voice family as Chirp3-HD, so the ConversationRelay
-  // call keeps the exact voice the tenant chose. Env vars override both.
+  // call keeps the exact voice the tenant chose — but Twilio only carries the
+  // classic Chirp3-HD set. An unsupported voice name makes Twilio reject the
+  // TwiML and drop the call ("an application error has occurred"), so anything
+  // outside the set falls back to the default voice. Env vars override both.
   const ttsProvider = process.env.CONVERSATION_RELAY_TTS_PROVIDER || "Google";
+  const requested = resolveVoice(opts.voiceId);
+  const relayVoiceName = RELAY_SUPPORTED_GOOGLE_VOICES.has(requested) ? requested : "Kore";
   const voice =
     process.env.CONVERSATION_RELAY_VOICE ||
-    (ttsProvider === "Google" ? `en-US-Chirp3-HD-${resolveVoice(opts.voiceId)}` : undefined);
+    (ttsProvider === "Google" ? `en-US-Chirp3-HD-${relayVoiceName}` : undefined);
 
   const vr = new VoiceResponse();
   const relay = vr.connect().conversationRelay({
