@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendBookingReminder } from "@/lib/bookings";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,9 @@ export const dynamic = "force-dynamic";
  * - 3 hours before scheduled time (reminder3SentAt is null)
  */
 export async function GET(req: NextRequest) {
+  const denied = requireCronAuth(req);
+  if (denied) return denied;
+
   try {
     const now = new Date();
 

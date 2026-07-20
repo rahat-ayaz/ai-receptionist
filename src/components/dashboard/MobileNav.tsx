@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Menu, X, LayoutGrid, Phone, CalendarCheck, BookOpen,
   MessageSquareText, CreditCard, Settings, AudioLines, FileText, UserCog, LogOut,
-  UtensilsCrossed, Stethoscope, Scale, Scissors, Wrench, Home, ShoppingBag, ListChecks
+  UtensilsCrossed, Stethoscope, Scale, Scissors, Wrench, Home, ShoppingBag, ListChecks, Plug
 } from "lucide-react";
 import { Logo } from "@/components/Brand";
 import { authClient } from "@/lib/auth-client";
@@ -30,6 +30,7 @@ const ICON_MAP: Record<string, any> = {
   AudioLines,
   FileText,
   UserCog,
+  Plug,
   utensils: UtensilsCrossed,
   stethoscope: Stethoscope,
   scale: Scale,

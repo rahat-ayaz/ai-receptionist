@@ -71,7 +71,19 @@ export interface TaxResult {
   total: number;
   /** Short label, e.g. "HST (13%)" or "GST 5% + PST 7%". */
   label: string;
+  /** Component tax amounts in CAD, rounded to cents. */
   breakdown: { gst: number; pst: number; hst: number };
+  /**
+   * Component tax *rates* (%), unrounded.
+   *
+   * Consumers that must restate the tax to a third party (a POS, an invoice)
+   * need these. Deriving a percentage from `breakdown` instead divides by a
+   * cent-rounded amount and drifts — e.g. 13% HST on $46.25 rounds to $6.01,
+   * which back-computes to 12.9946%, and Quebec's 9.975% QST becomes 10%.
+   */
+  rates: { gst: number; pst: number; hst: number };
+  /** Label for the provincial component: "PST", "RST" or "QST". */
+  pstName: string;
 }
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -101,6 +113,8 @@ export function computeTax(province: string | null | undefined, subtotal: number
       pst: round2((subtotal * r.pst) / 100),
       hst: round2((subtotal * r.hst) / 100),
     },
+    rates: { gst: r.gst, pst: r.pst, hst: r.hst },
+    pstName: r.pstName,
   };
 }
 

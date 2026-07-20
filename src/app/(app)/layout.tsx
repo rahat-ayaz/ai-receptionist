@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import {
   LayoutGrid, Phone, BookOpen, MessageSquareText, CreditCard, Settings, CalendarCheck,
   ListChecks, UtensilsCrossed, Stethoscope, Scale, Scissors, Wrench, Home, ShoppingBag,
-  AudioLines, FileText, UserCog, Clock, type LucideIcon,
+  AudioLines, FileText, UserCog, Clock, Plug, type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/Brand";
 import { auth } from "@/lib/auth";
@@ -83,6 +83,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         { href: "/dashboard/sms-rules", label: "SMS Rules", icon: MessageSquareText },
         { href: "/dashboard/settings", label: "Agent & Voice", icon: AudioLines },
         { href: "/dashboard/templates", label: "Templates", icon: FileText },
+        { href: "/dashboard/integrations", label: "Integrations", icon: Plug },
         { href: "/billing", label: "Billing", icon: CreditCard },
         { href: "/dashboard/account", label: "Account", icon: UserCog },
         { href: "/onboarding", label: "Setup", icon: Settings },
@@ -101,6 +102,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         { href: "/dashboard/sms-rules", label: "SMS Rules", iconKey: "MessageSquareText" },
         { href: "/dashboard/settings", label: "Agent & Voice", iconKey: "AudioLines" },
         { href: "/dashboard/templates", label: "Templates", iconKey: "FileText" },
+        { href: "/dashboard/integrations", label: "Integrations", iconKey: "Plug" },
         { href: "/billing", label: "Billing", iconKey: "CreditCard" },
         { href: "/dashboard/account", label: "Account", iconKey: "UserCog" },
         { href: "/onboarding", label: "Setup", iconKey: "Settings" },

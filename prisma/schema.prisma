@@ -164,6 +164,9 @@ model BusinessProfile {
   catalogItems    CatalogItem[]
   bookings        Booking[]
   messageTemplates MessageTemplate[]
+  integrations    Integration[]
+  externalRefs    ExternalRef[]
+  integrationOutbox IntegrationOutbox[]
 
   @@index([userId])
 }
@@ -377,7 +380,10 @@ model Booking {
   customerId        String
 
   // Human-friendly per-tenant reference, e.g. "ORD-0042" / "APT-0042".
-  reference String? @unique
+  // Uniqueness is per-tenant, NOT global: the number comes from
+  // BusinessProfile.bookingCounter, which restarts at 1 for every tenant, so a
+  // global @unique made the second tenant's first order collide and throw.
+  reference String?
 
   type   BookingType   @default(ORDER)
   status BookingStatus @default(PENDING)
@@ -406,6 +412,7 @@ model Booking {
   businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
   customer        Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
+  @@unique([businessProfileId, reference])
   @@index([businessProfileId, scheduledAt])
   @@index([businessProfileId, status])
   @@index([customerId])
@@ -431,7 +438,179 @@ model MessageTemplate {
   @@index([businessProfileId, channel])
 }
 
+// ─── Integrations (POS / CRM / ERP) ─────────────────────────────────────────
+// One connection per tenant per provider. `provider` is a plain String
+// validated in code against src/lib/integrations/registry.ts — same approach as
+// `BusinessProfile.niche` — so shipping a new provider stub never requires an
+// enum change on a schema that deploys via `db push`.
+
+model Integration {
+  id                String @id @default(cuid())
+  businessProfileId String
+
+  provider String
+  status   IntegrationStatus @default(PENDING)
+
+  // Display-only; safe to return over the API.
+  label             String? // e.g. "Square — Queen St location"
+  externalAccountId String? // Square merchant_id, generic REST endpoint host
+  scopes            String[] @default([])
+
+  // Encrypted secret bundle (AES-256-GCM). Never leaves the server.
+  secretsCipher String? @db.Text // base64 ciphertext
+  secretsIv     String?          // base64 12-byte IV
+  secretsTag    String?          // base64 16-byte auth tag
+  secretsKeyVer String?          // keyring version used to encrypt, e.g. "v1"
+
+  // Non-secret provider config: Square locationId, generic REST url/method, …
+  config Json @default("{}")
+
+  accessTokenExpiresAt DateTime?
+  // Advisory lock so two concurrent drains can't both refresh (and invalidate).
+  refreshingAt         DateTime?
+
+  catalogSyncEnabled Boolean   @default(true)
+  bookingPushEnabled Boolean   @default(true)
+  lastCatalogSyncAt  DateTime?
+  lastBookingPushAt  DateTime?
+  catalogCursor      String?   // resumable pagination cursor
+
+  lastErrorAt      DateTime?
+  lastErrorCode    String?
+  lastErrorMessage String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessProfile BusinessProfile      @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  externalRefs    ExternalRef[]
+  outbox          IntegrationOutbox[]
+  syncRuns        IntegrationSyncRun[]
+
+  @@unique([businessProfileId, provider])
+  @@index([businessProfileId, status])
+  @@index([provider, accessTokenExpiresAt])
+}
+
+// Polymorphic local↔external identity map. Deliberately NOT columns on
+// CatalogItem/Booking: leaves those tables untouched (important — this repo
+// deploys with `db push` and CatalogItem already holds duplicate rows), and
+// supports more than one integration per tenant.
+model ExternalRef {
+  id                String @id @default(cuid())
+  integrationId     String
+  businessProfileId String
+
+  entityType String // "CATALOG_ITEM" | "BOOKING" | "CUSTOMER"
+  localId    String
+  externalId String
+  // Provider-side version/etag, for cheap change detection on re-pull.
+  externalVersion String?
+  // Set when a full pull stops seeing this externalId — soft-delete trail.
+  missingSince DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  integration     Integration     @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, entityType, externalId])
+  @@unique([integrationId, entityType, localId])
+  @@index([businessProfileId, entityType, localId])
+}
+
+// Durable retryable push queue — stands in for the job system this repo lacks.
+model IntegrationOutbox {
+  id                String @id @default(cuid())
+  integrationId     String
+  businessProfileId String
+
+  kind       String // "BOOKING_CREATE" | "BOOKING_UPDATE" | "BOOKING_CANCEL"
+  entityType String @default("BOOKING")
+  entityId   String
+
+  // "<bookingId>:<kind>:<revision>" — enqueue catches P2002 as a no-op, so a
+  // double-confirm collapses to a single push.
+  idempotencyKey String @unique
+
+  payload Json
+  status  OutboxStatus @default(PENDING)
+
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  claimedAt     DateTime?
+
+  resultExternalId String?
+  lastErrorCode    String?
+  lastErrorMessage String? @db.Text
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  integration     Integration     @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  businessProfile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt]) // the drainer's only hot query
+  @@index([businessProfileId, status]) // owner-facing failure list
+  @@index([entityId])
+}
+
+model IntegrationSyncRun {
+  id                String @id @default(cuid())
+  integrationId     String
+  businessProfileId String
+
+  kind   String // "CATALOG_PULL"
+  status String // "RUNNING" | "SUCCEEDED" | "PARTIAL" | "FAILED"
+
+  createdCount     Int @default(0)
+  updatedCount     Int @default(0)
+  deactivatedCount Int @default(0)
+  skippedCount     Int @default(0)
+  ambiguousCount   Int @default(0)
+
+  errorMessage String? @db.Text
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  integration Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([integrationId, startedAt])
+}
+
+// Single-use CSRF nonce for the OAuth round trip.
+model IntegrationOAuthState {
+  id                String   @id @default(cuid())
+  nonce             String   @unique
+  provider          String
+  businessProfileId String
+  redirectTo        String?
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
 // ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum IntegrationStatus {
+  PENDING        // row created, not yet authorized
+  ACTIVE
+  NEEDS_REAUTH   // token dead, refresh rejected, or decrypt failed
+  DISABLED       // owner turned it off
+  ACCESS_PENDING // gated partner (Toast / TouchBistro) — access requested
+}
+
+enum OutboxStatus {
+  PENDING
+  IN_FLIGHT
+  SUCCEEDED
+  FAILED // non-retryable — terminal, owner must act
+  DEAD   // retries exhausted — terminal
+}
 
 enum MessageChannel {
   SMS

@@ -4,6 +4,7 @@ import { sendSmsCode, sendSms, twilioClient } from "@/lib/twilio";
 import { priceOrder, type LineItem, type LineItemInput } from "@/lib/pricing";
 import { normalizeProvince } from "@/lib/tax";
 import { applyTokens, renderBrandedEmail } from "@/lib/branding";
+import { enqueueBookingPush } from "@/lib/integrations/outbox";
 import type { BookingType, BookingStatus, Booking, Customer } from "@prisma/client";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -230,35 +231,55 @@ export async function sendBookingConfirmation(
     const bodyText = emailTpl ? applyTokens(emailTpl.body, vars) : fallback;
     const emailItems = isCancelled ? [] : ((booking.lineItems as unknown as { name: string; qty: number; unitPrice: number; lineTotal: number }[]) || []);
 
-    await sendEmail({
-      to: booking.customer.email,
-      subject,
-      text: bodyText.replace(/\\n/g, "\n"),
-      html: renderBrandedEmail({
-        brand: bp,
-        businessName: bp.name,
-        heading: subject,
-        body: bodyText,
-        items: emailItems,
-        subtotal: isCancelled ? 0 : booking.subtotal,
-        taxAmount: isCancelled ? 0 : booking.taxAmount,
-        taxLabel: booking.taxLabel,
-        total: isCancelled ? 0 : booking.total
-      }),
-    });
+    // A delivery failure must not abort the status promotion below — the
+    // booking is still confirmed, and downstream work (POS push) hangs off it.
+    try {
+      await sendEmail({
+        to: booking.customer.email,
+        subject,
+        text: bodyText.replace(/\\n/g, "\n"),
+        html: renderBrandedEmail({
+          brand: bp,
+          businessName: bp.name,
+          heading: subject,
+          body: bodyText,
+          items: emailItems,
+          subtotal: isCancelled ? 0 : booking.subtotal,
+          taxAmount: isCancelled ? 0 : booking.taxAmount,
+          taxLabel: booking.taxLabel,
+          total: isCancelled ? 0 : booking.total
+        }),
+      });
+    } catch (err) {
+      console.error(`[bookings] confirmation email failed for ${id}:`, err);
+    }
   }
 
   // SMS — template-driven when configured (plain text).
   const smsBody = smsTpl ? applyTokens(smsTpl.body, vars) : fallback;
-  await sendSmsCode(booking.customer.phone, smsBody.replace(/\\n/g, "\n"));
+  try {
+    await sendSmsCode(booking.customer.phone, smsBody.replace(/\\n/g, "\n"));
+  } catch (err) {
+    console.error(`[bookings] confirmation SMS failed for ${id}:`, err);
+  }
 
-  return prisma.booking.update({
+  const updated = await prisma.booking.update({
     where: { id },
     data: {
       confirmationSentAt: new Date(),
       status: booking.status === "PENDING" ? "CONFIRMED" : booking.status,
     },
   });
+
+  // Hand the confirmed booking to any connected POS/CRM. Never let a queue
+  // failure break the confirmation flow.
+  try {
+    await enqueueBookingPush(updated, businessProfileId, isUpdate);
+  } catch (err) {
+    console.error(`[bookings] failed to enqueue POS push for ${id}:`, err);
+  }
+
+  return updated;
 }
 
 /** Send a booking reminder (24h or 3h before) by email + SMS. */

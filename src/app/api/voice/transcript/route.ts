@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { analyzeCall, type TranscriptTurn } from "@/lib/gemini";
 import { createBooking, modifyBooking } from "@/lib/bookings";
+import { resolveLineItems, allItems } from "@/lib/catalog-match";
 
 export const dynamic = "force-dynamic";
 
@@ -64,36 +65,32 @@ export async function POST(req: NextRequest) {
 
     if (intent.action === "CREATE_BOOKING" && intent.scheduledAt) {
       try {
-        // Fetch active catalog to resolve item names and prices
-        const catalog = await prisma.catalogItem.findMany({
-          where: { businessProfileId: profileId, active: true }
-        });
-        
-        // Resolve items
-        const lineItems = (intent.items || []).map((i: any) => {
-          const match = catalog.find(c => c.name.toLowerCase() === i.name.toLowerCase())
-                     || catalog.find(c => c.name.toLowerCase().includes(i.name.toLowerCase()));
-          return {
-            name: match ? match.name : i.name,
-            qty: i.qty || 1,
-            unitPrice: match && match.price != null ? match.price : 0
-          };
-        });
+        // Resolve spoken item names against the catalog. Unmatched items are
+        // reported rather than silently priced at $0 — see catalog-match.ts.
+        const match = await resolveLineItems(profileId, intent.items || []);
 
         const profile = await prisma.businessProfile.findUnique({
           where: { id: profileId },
           select: { province: true }
         });
 
+        const baseNote = intent.notes || `Created automatically from call ${body.callSid}`;
+
         await createBooking({
           businessProfileId: profileId,
           phone: session.callerNumber,
           type: intent.bookingType || "ORDER",
           scheduledAt: new Date(intent.scheduledAt),
-          items: lineItems,
+          items: allItems(match),
           province: profile?.province || "ON",
-          notes: intent.notes || `Created automatically from call ${body.callSid}`
+          notes: match.reviewNote ? `${baseNote} — ${match.reviewNote}` : baseNote
         });
+
+        if (match.needsReview) {
+          console.warn(
+            `[voice/transcript] Booking from call ${body.callSid} needs review: ${match.reviewNote}`,
+          );
+        }
         console.log(`[voice/transcript] Auto-created booking for call ${body.callSid}`);
       } catch (err) {
         console.error("[voice/transcript] Auto-creation failed:", err);
@@ -129,18 +126,14 @@ export async function POST(req: NextRequest) {
           if (intent.notes) patchData.notes = intent.notes;
           
           if (intent.items && intent.items.length > 0) {
-            const catalog = await prisma.catalogItem.findMany({
-              where: { businessProfileId: profileId, active: true }
-            });
-            patchData.items = intent.items.map((i: any) => {
-              const match = catalog.find(c => c.name.toLowerCase() === i.name.toLowerCase())
-                         || catalog.find(c => c.name.toLowerCase().includes(i.name.toLowerCase()));
-              return {
-                name: match ? match.name : i.name,
-                qty: i.qty || 1,
-                unitPrice: match && match.price != null ? match.price : 0
-              };
-            });
+            const match = await resolveLineItems(profileId, intent.items);
+            patchData.items = allItems(match);
+            if (match.reviewNote) {
+              patchData.notes = `${patchData.notes ?? booking.notes ?? ""} — ${match.reviewNote}`.trim();
+              console.warn(
+                `[voice/transcript] Modified booking ${booking.reference} needs review: ${match.reviewNote}`,
+              );
+            }
           }
 
           await modifyBooking(booking.id, profileId, patchData);
