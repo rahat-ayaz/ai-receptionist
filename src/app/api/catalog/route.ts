@@ -6,15 +6,28 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const businessProfileId = await currentProfileId();
-  if (!businessProfileId) return NextResponse.json({ items: [], niche: "OTHER" });
-  const [items, profile] = await Promise.all([
+  if (!businessProfileId) return NextResponse.json({ items: [], niche: "OTHER", managed: {} });
+
+  const [items, profile, refs] = await Promise.all([
     prisma.catalogItem.findMany({
       where: { businessProfileId },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     }),
     prisma.businessProfile.findUnique({ where: { id: businessProfileId }, select: { niche: true } }),
+    // Items linked to a POS are overwritten on every sync, so the UI needs to
+    // stop owners editing them and then watching their work revert.
+    prisma.externalRef.findMany({
+      where: { businessProfileId, entityType: "CATALOG_ITEM" },
+      select: { localId: true, integration: { select: { provider: true, label: true } } },
+    }),
   ]);
-  return NextResponse.json({ items, niche: profile?.niche ?? "OTHER" });
+
+  const managed: Record<string, string> = {};
+  for (const ref of refs) {
+    managed[ref.localId] = ref.integration.label ?? ref.integration.provider;
+  }
+
+  return NextResponse.json({ items, niche: profile?.niche ?? "OTHER", managed });
 }
 
 export async function POST(req: NextRequest) {

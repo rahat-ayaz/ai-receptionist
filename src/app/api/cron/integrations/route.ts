@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { drain } from "@/lib/integrations/outbox";
 import { buildContext } from "@/lib/integrations";
+import { pullCatalog } from "@/lib/integrations/sync/catalog";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,32 @@ export async function GET(req: NextRequest) {
       else reauthNeeded += 1;
     }
 
+    // Catalog pulls requested by a provider webhook, plus any run that hit its
+    // deadline mid-page and left a cursor behind.
+    const pending = await prisma.integration.findMany({
+      where: {
+        status: "ACTIVE",
+        catalogSyncEnabled: true,
+        OR: [{ catalogSyncRequestedAt: { not: null } }, { catalogCursor: { not: null } }],
+      },
+      take: 5,
+    });
+
+    const syncs: { provider: string; status: string }[] = [];
+    for (const integration of pending) {
+      // Clear the request flag first: a change arriving mid-sync should leave
+      // the flag set for the next tick rather than being swallowed by this one.
+      await prisma.integration.update({
+        where: { id: integration.id },
+        data: { catalogSyncRequestedAt: null },
+      });
+      const summary = await pullCatalog(integration, {
+        full: integration.catalogCursor === null,
+        deadlineMs: 15_000,
+      });
+      syncs.push({ provider: integration.provider, status: summary.status });
+    }
+
     // Housekeeping: consumed nonces are deleted on use, but abandoned OAuth
     // attempts would otherwise accumulate forever.
     const { count: expiredStates } = await prisma.integrationOAuthState.deleteMany({
@@ -48,6 +75,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       outbox: result,
       tokens: { checked: expiring.length, refreshed, reauthNeeded },
+      syncs,
       expiredStates,
     });
   } catch (err) {

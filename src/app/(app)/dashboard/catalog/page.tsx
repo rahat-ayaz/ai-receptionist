@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Loader2, Upload, Link2, ClipboardType, Sparkles, X, Save, Pencil } from "lucide-react";
+import { Plus, Trash2, Loader2, Upload, Link2, ClipboardType, Sparkles, X, Save, Pencil, Lock } from "lucide-react";
 import { nicheConfig, NICHE_OPTIONS } from "@/lib/niche";
 
 interface Item {
@@ -45,6 +45,10 @@ export default function CatalogPage() {
   const [editCategory, setEditCategory] = useState("");
   const [editImageUrl, setEditImageUrl] = useState("");
 
+  // catalogItem.id → the POS that owns it. Those rows are overwritten on every
+  // sync, so editing them here is work the next sync silently throws away.
+  const [managed, setManaged] = useState<Record<string, string>>({});
+
   const addImageRef = useRef<HTMLInputElement>(null);
   const editImageRef = useRef<HTMLInputElement>(null);
 
@@ -72,9 +76,14 @@ export default function CatalogPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/catalog");
-      const data = (await res.json()) as { items: Item[]; niche: string };
+      const data = (await res.json()) as {
+        items: Item[];
+        niche: string;
+        managed?: Record<string, string>;
+      };
       setItems(data.items ?? []);
       setNiche(data.niche ?? "OTHER");
+      setManaged(data.managed ?? {});
     } catch (err) {
       console.error("Failed to load catalog items:", err);
     } finally {
@@ -445,14 +454,36 @@ export default function CatalogPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{i.name}</p>
-                    {i.category && <p className="mt-0.5 text-[11px] uppercase tracking-wide text-[var(--color-ink-faint)]">{i.category}</p>}
+                    {/* Chip sits on the metadata line so it never eats into the
+                        item name, which is already tight in this grid. */}
+                    <p className="mt-0.5 flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-[var(--color-ink-faint)]">
+                      {i.category && <span className="truncate">{i.category}</span>}
+                      {managed[i.id] && (
+                        <span
+                          title={`Managed by ${managed[i.id]} — edit it there.`}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[var(--color-slate-panel)] px-1.5 py-0.5 text-[10px] normal-case tracking-normal text-[var(--color-ink-dim)]"
+                        >
+                          <Lock className="h-2.5 w-2.5" />
+                          {managed[i.id]}
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   {i.price != null && <span className="font-semibold text-[var(--color-gold-soft)]">${i.price.toFixed(2)}</span>}
-                  <button onClick={() => startEdit(i)} className="text-[var(--color-ink-faint)] hover:text-[var(--color-gold)]">
-                    <Pencil className="h-4 w-4" />
-                  </button>
+                  {managed[i.id] ? (
+                    <span
+                      title={`Managed by ${managed[i.id]}. Edit it there — changes made here are overwritten on the next sync.`}
+                      className="cursor-not-allowed text-[var(--color-ink-faint)] opacity-40"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </span>
+                  ) : (
+                    <button onClick={() => startEdit(i)} className="text-[var(--color-ink-faint)] hover:text-[var(--color-gold)]">
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  )}
                   <button onClick={() => remove(i.id)} className="text-[var(--color-ink-faint)] hover:text-red-400">
                     <Trash2 className="h-4 w-4" />
                   </button>

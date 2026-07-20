@@ -472,6 +472,10 @@ model Integration {
   catalogSyncEnabled Boolean   @default(true)
   bookingPushEnabled Boolean   @default(true)
   lastCatalogSyncAt  DateTime?
+  // Set by a provider webhook to request a pull. The cron drains these, so a
+  // webhook can return 200 immediately instead of holding the connection open
+  // for a full catalog sync (and risking a provider retry storm on timeout).
+  catalogSyncRequestedAt DateTime?
   lastBookingPushAt  DateTime?
   catalogCursor      String?   // resumable pagination cursor
 
