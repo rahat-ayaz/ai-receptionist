@@ -28,3 +28,7 @@ npm-debug.log*
 
 # typescript
 *.tsbuildinfo
+.vercel
+.env*
+# ...but the template is committed; `.env*` above would otherwise swallow it.
+!.env.example

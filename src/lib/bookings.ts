@@ -9,6 +9,32 @@ import type { BookingType, BookingStatus, Booking, Customer } from "@prisma/clie
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 
+/** Matches AgentSettings.timezone's schema default. */
+export const DEFAULT_TIMEZONE = "America/Toronto";
+
+/**
+ * Render a booking time in the tenant's timezone. Every customer-facing time
+ * goes through here — a tenant outside Eastern otherwise quotes appointment
+ * times hours off, which reads as the wrong slot rather than a display bug.
+ */
+function formatWhen(at: Date | string, timezone: string | null | undefined): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  };
+  const date = new Date(at);
+  try {
+    return date.toLocaleString("en-CA", { ...opts, timeZone: timezone || DEFAULT_TIMEZONE });
+  } catch {
+    // An unrecognised IANA zone throws rather than degrading; a time in the
+    // default zone beats no message at all.
+    return date.toLocaleString("en-CA", { ...opts, timeZone: DEFAULT_TIMEZONE });
+  }
+}
+
 /** Resolve a customer by phone within a tenant, creating one if new. */
 export async function getOrCreateCustomer(
   businessProfileId: string,
@@ -136,15 +162,9 @@ export function formatBookingMessage(
   booking: Pick<Booking, "type" | "reference" | "scheduledAt" | "lineItems" | "subtotal" | "taxAmount" | "total" | "taxLabel" | "status">,
   businessName: string,
   kind: "confirmation" | "reminder" | "update" | "cancelled" = "confirmation",
+  timezone?: string | null,
 ): string {
-  const when = new Date(booking.scheduledAt).toLocaleString("en-CA", {
-    timeZone: "America/Toronto",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const when = formatWhen(booking.scheduledAt, timezone);
   const items = (booking.lineItems as unknown as LineItem[]) ?? [];
   const itemsLine = items.length
     ? items.map((i) => `${i.qty} × ${i.name} (${money(i.lineTotal)})`).join(", ")
@@ -180,21 +200,18 @@ export async function sendBookingConfirmation(
 ): Promise<Booking | null> {
   const booking = await prisma.booking.findFirst({
     where: { id, businessProfileId },
-    include: { customer: true, businessProfile: true },
+    include: {
+      customer: true,
+      businessProfile: { include: { agentSettings: { select: { timezone: true } } } },
+    },
   });
   if (!booking) return null;
 
   const bp = booking.businessProfile;
+  const timezone = bp.agentSettings?.timezone;
   const items = (booking.lineItems as unknown as LineItem[]) ?? [];
   const noun = booking.type === "ORDER" ? "order" : "appointment";
-  const when = new Date(booking.scheduledAt).toLocaleString("en-CA", {
-    timeZone: "America/Toronto",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const when = formatWhen(booking.scheduledAt, timezone);
 
   // Token values available to templates.
   const vars: Record<string, string> = {
@@ -218,7 +235,12 @@ export async function sendBookingConfirmation(
   const smsTpl = templates.find((t) => t.channel === "SMS");
   
   const isCancelled = booking.status === "CANCELLED";
-  const fallback = formatBookingMessage(booking, bp.name, isCancelled ? "cancelled" : isUpdate ? "update" : "confirmation");
+  const fallback = formatBookingMessage(
+    booking,
+    bp.name,
+    isCancelled ? "cancelled" : isUpdate ? "update" : "confirmation",
+    timezone,
+  );
 
   // Email — branded HTML, template-driven when configured.
   if (booking.customer.email) {
@@ -294,6 +316,7 @@ export async function sendBookingReminder(
       businessProfile: {
         include: {
           twilioNumbers: { where: { active: true }, select: { phoneNumber: true }, take: 1 },
+          agentSettings: { select: { timezone: true } },
         },
       },
     },
@@ -301,16 +324,10 @@ export async function sendBookingReminder(
   if (!booking) return null;
 
   const bp = booking.businessProfile;
+  const timezone = bp.agentSettings?.timezone;
   const items = (booking.lineItems as unknown as LineItem[]) ?? [];
   const noun = booking.type === "ORDER" ? "order" : "appointment";
-  const when = new Date(booking.scheduledAt).toLocaleString("en-CA", {
-    timeZone: "America/Toronto",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const when = formatWhen(booking.scheduledAt, timezone);
 
   const vars: Record<string, string> = {
     businessName: bp.name,
@@ -332,7 +349,7 @@ export async function sendBookingReminder(
   const emailTpl = templates.find((t) => t.channel === "EMAIL");
   const smsTpl = templates.find((t) => t.channel === "SMS");
 
-  const fallback = formatBookingMessage(booking, bp.name, "reminder");
+  const fallback = formatBookingMessage(booking, bp.name, "reminder", timezone);
 
   // Email — branded HTML
   if (booking.customer.email) {
@@ -341,32 +358,42 @@ export async function sendBookingReminder(
     const bodyText = emailTpl ? applyTokens(emailTpl.body, vars) : fallback;
     const emailItems = ((booking.lineItems as unknown as { name: string; qty: number; unitPrice: number; lineTotal: number }[]) || []);
 
-    await sendEmail({
-      to: booking.customer.email,
-      subject,
-      text: bodyText.replace(/\\n/g, "\n"),
-      html: renderBrandedEmail({
-        brand: bp,
-        businessName: bp.name,
-        heading: subject,
-        body: bodyText,
-        items: emailItems,
-        subtotal: booking.subtotal,
-        taxAmount: booking.taxAmount,
-        taxLabel: booking.taxLabel,
-        total: booking.total
-      }),
-    });
+    // A delivery failure must not abort the remaining channels or the sent
+    // stamp below — an unstamped reminder is retried on every later run.
+    try {
+      await sendEmail({
+        to: booking.customer.email,
+        subject,
+        text: bodyText.replace(/\\n/g, "\n"),
+        html: renderBrandedEmail({
+          brand: bp,
+          businessName: bp.name,
+          heading: subject,
+          body: bodyText,
+          items: emailItems,
+          subtotal: booking.subtotal,
+          taxAmount: booking.taxAmount,
+          taxLabel: booking.taxLabel,
+          total: booking.total
+        }),
+      });
+    } catch (err) {
+      console.error(`[bookings] reminder email failed for ${id}:`, err);
+    }
   }
 
   // SMS — dynamic sender
   const smsBody = smsTpl ? applyTokens(smsTpl.body, vars) : fallback;
   const fromOverride = bp.twilioNumbers[0]?.phoneNumber ?? undefined;
-  await sendSms(booking.customer.phone, smsBody.replace(/\\n/g, "\n"), fromOverride);
+  try {
+    await sendSms(booking.customer.phone, smsBody.replace(/\\n/g, "\n"), fromOverride);
+  } catch (err) {
+    console.error(`[bookings] reminder SMS failed for ${id}:`, err);
+  }
 
   // Outbound Voice Call Reminder
-  if (fromOverride && twilioClient) {
-    const base = (process.env.APP_BASE_URL || "").replace(/\/$/, "");
+  const base = (process.env.APP_BASE_URL || "").replace(/\/$/, "");
+  if (fromOverride && twilioClient && base) {
     const url = `${base}/api/telephony/outbound-reminder?bookingId=${booking.id}`;
     try {
       await twilioClient.calls.create({

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   const bp = booking.businessProfile;
   const settings = bp.agentSettings;
-  const message = formatBookingMessage(booking, bp.name, "reminder");
+  const message = formatBookingMessage(booking, bp.name, "reminder", settings?.timezone);
 
   const twiml = buildRejectTwiML(
     `Hello. This is a reminder call from ${bp.name}. ${message} Goodbye.`,

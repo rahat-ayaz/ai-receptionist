@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { appBaseUrl } from "@/lib/app-url";
 import twilio from "twilio";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     const twilioNumber = profile.twilioNumbers[0].phoneNumber;
-    const base = (process.env.BETTER_AUTH_URL || process.env.APP_BASE_URL || "https://ai-receptionist-rho-three.vercel.app").replace(/\/$/, "");
+    const base = appBaseUrl();
     
     const call = await twilioClient.calls.create({
       url: `${base}/api/telephony/outbound-connect?profileId=${profile.id}&customerName=${encodeURIComponent(name)}&context=${encodeURIComponent(context)}`,

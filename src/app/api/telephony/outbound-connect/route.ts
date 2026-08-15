@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateCustomer } from "@/lib/bookings";
 import { buildStreamTwiML, buildRejectTwiML } from "@/lib/twilio";
+import { appBaseUrl } from "@/lib/app-url";
 import twilio from "twilio";
 
 export const dynamic = "force-dynamic";
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (settings?.recordCalls && twilioClient) {
-      const base = (process.env.BETTER_AUTH_URL || process.env.APP_BASE_URL || "https://ai-receptionist-rho-three.vercel.app").replace(/\/$/, "");
+      const base = appBaseUrl();
       void twilioClient.calls(callSid).recordings.create({
         recordingStatusCallback: `${base}/api/telephony/recording`,
         trim: "trim-silence",
