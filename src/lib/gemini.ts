@@ -9,10 +9,21 @@ export const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? ""
 export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.1-flash-lite";
 export const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || "gemini-3.1-flash-tts-preview";
+// The TTS models are preview-tier and shed load with 503 UNAVAILABLE under
+// demand spikes. On a live call that surfaces as dead air: Twilio <Play> gets
+// a 502 and plays nothing, the Gather times out, and the caller hears silence.
+// The greeting hides it — its text never changes, so Twilio serves it from its
+// own URL cache — while every generated reply is a fresh URL and fails live.
+export const GEMINI_TTS_FALLBACK_MODEL =
+  process.env.GEMINI_TTS_FALLBACK_MODEL || "gemini-2.5-flash-preview-tts";
 
 // Overloaded models can hang rather than fail — cap the primary attempt so
 // callers (and Twilio's webhook timeout) never wait on a stuck request.
 const PRIMARY_MODEL_TIMEOUT_MS = 5000;
+// Audio generation is slower than text — a ~2.5s render is normal — so it gets
+// its own ceiling rather than the text path's tighter one.
+const TTS_TIMEOUT_MS = 9000;
+const TTS_RETRY_DELAY_MS = 250;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -61,18 +72,50 @@ function pcmToWav(pcm: Buffer, sampleRate = 24000, channels = 1, bits = 16): Buf
 }
 
 /** Synthesize `text` with a Gemini voice; returns a playable WAV buffer. */
-export async function geminiTts(text: string, voiceName: string): Promise<Buffer> {
-  const res = await gemini.models.generateContent({
-    model: GEMINI_TTS_MODEL,
-    contents: text,
-    config: {
-      responseModalities: ["AUDIO"],
-      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
-    },
-  });
+async function ttsAttempt(model: string, text: string, voiceName: string): Promise<Buffer> {
+  const res = await withTimeout(
+    gemini.models.generateContent({
+      model,
+      contents: text,
+      config: {
+        responseModalities: ["AUDIO"],
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
+      },
+    }),
+    TTS_TIMEOUT_MS,
+  );
   const data = res.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
   if (!data) throw new Error("No audio returned from Gemini TTS");
   return pcmToWav(Buffer.from(data, "base64"));
+}
+
+/**
+ * Synthesize `text` with a Gemini voice; returns a playable WAV buffer.
+ *
+ * Tries the primary model twice before switching models: a 503 here is
+ * capacity shedding on a single request, not a model that is down, so an
+ * immediate second attempt usually lands. Only then does it change models,
+ * because the fallback is a different voice generation and may render the
+ * same voice name slightly differently mid-call.
+ */
+export async function geminiTts(text: string, voiceName: string): Promise<Buffer> {
+  const attempts = [GEMINI_TTS_MODEL, GEMINI_TTS_MODEL, GEMINI_TTS_FALLBACK_MODEL];
+  let lastErr: unknown;
+
+  for (let i = 0; i < attempts.length; i++) {
+    try {
+      return await ttsAttempt(attempts[i], text, voiceName);
+    } catch (err) {
+      lastErr = err;
+      if (i === attempts.length - 1) break;
+      console.warn(
+        `[gemini] TTS ${attempts[i]} failed (${(err as Error)?.message?.slice(0, 80)}), ` +
+          `retrying with ${attempts[i + 1]}`,
+      );
+      await new Promise((r) => setTimeout(r, TTS_RETRY_DELAY_MS));
+    }
+  }
+  throw lastErr;
 }
 
 // ─── Conversation typing ────────────────────────────────────────────────────
