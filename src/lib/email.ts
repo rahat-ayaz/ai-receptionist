@@ -10,7 +10,7 @@ interface SendEmailOptions {
   html?: string;
 }
 
-const FROM = process.env.EMAIL_FROM || "CAPRO <no-reply@torqai.ca>";
+const FROM = process.env.EMAIL_FROM || "AI Receptionist <no-reply@torqai.ca>";
 
 export async function sendEmail({ to, subject, text, html }: SendEmailOptions): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;

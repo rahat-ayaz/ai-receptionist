@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════════
-//  CAPRO — Voice bridge: Twilio Media Streams  ↔  Gemini Live
+//  AI Receptionist — Voice bridge: Twilio Media Streams  ↔  Gemini Live
 //  Twilio carries the call; Gemini does listening + thinking + speaking.
 //  Run alongside the app + DB:  node scripts/voice-bridge.mjs
 //  (Live calls also need a public wss tunnel set as PUBLIC_WSS_URL.)

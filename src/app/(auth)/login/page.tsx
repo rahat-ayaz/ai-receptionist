@@ -48,10 +48,10 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Sign in to your CAPRO dashboard."
+      subtitle="Sign in to your AI Receptionist dashboard."
       footer={
         <>
-          New to CAPRO?{" "}
+          New to AI Receptionist?{" "}
           <Link href="/register" className="text-[var(--color-gold-soft)] hover:underline">
             Create an account
           </Link>

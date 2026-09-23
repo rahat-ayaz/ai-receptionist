@@ -1,8 +1,8 @@
 {
-  "name": "capro",
+  "name": "ai-receptionist",
   "version": "1.0.0",
   "private": true,
-  "description": "CAPRO — AI Automated Receptionist platform by TorqAI Technologies Inc.",
+  "description": "AI Receptionist — automated call answering platform by TorqAI Technologies Inc.",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && (prisma db push --accept-data-loss || echo 'Database sync bypassed or offline') && next build",

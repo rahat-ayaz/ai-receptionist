@@ -13,6 +13,6 @@ export function getStripe(): Stripe {
   if (!key) {
     throw new Error("STRIPE_SECRET_KEY is not set — billing is unavailable.");
   }
-  client = new Stripe(key, { appInfo: { name: "CAPRO", version: "1.0.0" } });
+  client = new Stripe(key, { appInfo: { name: "AI Receptionist", version: "1.0.0" } });
   return client;
 }

@@ -43,7 +43,7 @@ export default function LandingPage() {
         <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-6xl">
           Never miss a call.
           <br />
-          <span className="text-[var(--color-gold)]">Let CAPRO answer.</span>
+          <span className="text-[var(--color-gold)]">Let AI Receptionist answer.</span>
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-base text-[var(--color-ink-dim)] sm:text-lg">
           A zero-friction AI receptionist that learns your business in seconds, answers every call in a natural

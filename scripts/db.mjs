@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════════
-//  CAPRO — local embedded PostgreSQL control script
+//  AI Receptionist — local embedded PostgreSQL control script
 //  Runs a real, self-contained Postgres 16 server in userspace (no system
 //  install, no sudo). Data persists in ./.pgdata (gitignored).
 //
@@ -13,6 +13,9 @@ import { dirname, join } from "node:path";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_DIR = join(ROOT, ".pgdata");
+// Local embedded-Postgres identity, deliberately unchanged by the rebrand:
+// renaming it orphans any existing .pgdata directory, so every developer's
+// local database would silently come up empty.
 const DB_NAME = "capro";
 
 const pg = new EmbeddedPostgres({

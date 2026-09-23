@@ -131,17 +131,17 @@ async function sendTrialReminder(
   const name = user.name || "there";
   const billingLink = `${base}/billing`;
 
-  const emailSubject = `Your CAPRO free trial is ending in ${timeLeft}`;
+  const emailSubject = `Your AI Receptionist free trial is ending in ${timeLeft}`;
   const emailBody = `Hi ${name},
 
-This is a reminder that your 7-day CAPRO free trial will expire in ${timeLeft}.
+This is a reminder that your 7-day AI Receptionist free trial will expire in ${timeLeft}.
 
 To prevent any service interruption to your AI receptionist and access to your dashboard, please choose a plan and subscribe.
 
 Subscribe here: ${billingLink}
 
 Thanks,
-The CAPRO Team`;
+The AI Receptionist Team`;
 
   // A failure on either channel must not block the other, nor prevent the
   // caller from stamping the tier — an unstamped tier retries every run.
@@ -152,7 +152,7 @@ The CAPRO Team`;
   }
 
   if (user.phoneNumber) {
-    const smsBody = `CAPRO Reminder: Your free trial is ending in ${timeLeft}. Subscribe now to keep your AI receptionist active: ${billingLink}`;
+    const smsBody = `AI Receptionist: your free trial is ending in ${timeLeft}. Subscribe now to keep answering calls: ${billingLink}`;
     try {
       await sendSms(user.phoneNumber, smsBody);
     } catch (err) {

@@ -524,7 +524,7 @@ export default function IntegrationsPage() {
                       <p className="mb-3 rounded-lg border border-[var(--color-slate-line)] bg-[var(--color-navy-700)]/40 p-2.5 text-xs text-[var(--color-ink-dim)]">
                         <AlertTriangle className="mr-1.5 inline h-3.5 w-3.5 text-amber-400" />
                         {p.label} becomes the source of truth for linked items. Names and prices you
-                        edit in CAPRO will be overwritten on each sync. Items you added only in CAPRO
+                        edit in AI Receptionist will be overwritten on each sync. Items you added only here
                         are left alone.
                       </p>
                     )}

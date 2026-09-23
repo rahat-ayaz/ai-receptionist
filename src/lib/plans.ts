@@ -1,4 +1,4 @@
-// ─── CAPRO subscription matrix ──────────────────────────────────────────────
+// ─── Subscription matrix ──────────────────────────────────────────────
 // Single source of truth for the four-tier Stripe billing model. The overage
 // increment is the metered per-call charge once `callCap` is exhausted.
 

@@ -44,7 +44,7 @@ export const auth = betterAuth({
       }) => {
         await sendEmail({
           to: user.email,
-          subject: "Confirm your new CAPRO email",
+          subject: "Confirm your new AI Receptionist email",
           text: `Approve changing your email to ${newEmail}:\n${url}`,
         });
       },
@@ -61,7 +61,7 @@ export const auth = betterAuth({
     }) => {
       await sendEmail({
         to: user.email,
-        subject: "Verify your CAPRO email",
+        subject: "Verify your AI Receptionist email",
         text: `Verify your email using this link:\n${url}`,
       });
     },
@@ -80,7 +80,7 @@ export const auth = betterAuth({
     }) => {
       await sendEmail({
         to: user.email,
-        subject: "Reset your CAPRO password",
+        subject: "Reset your AI Receptionist password",
         text: `Reset your password using this link:\n${url}`,
       });
     },
@@ -96,14 +96,14 @@ export const auth = betterAuth({
       async sendVerificationOTP({ email, otp, type }) {
         const subject =
           type === "email-verification"
-            ? "Your CAPRO verification code"
+            ? "Your AI Receptionist verification code"
             : type === "forget-password"
-              ? "Your CAPRO password reset code"
-              : "Your CAPRO sign-in code";
+              ? "Your AI Receptionist password reset code"
+              : "Your AI Receptionist sign-in code";
         await sendEmail({
           to: email,
           subject,
-          text: `Your CAPRO code is ${otp}. It expires in 10 minutes.`,
+          text: `Your AI Receptionist code is ${otp}. It expires in 10 minutes.`,
         });
       },
     }),
@@ -113,14 +113,14 @@ export const auth = betterAuth({
       otpLength: 6,
       expiresIn: 600,
       sendOTP: async ({ phoneNumber: to, code }) => {
-        await sendSmsCode(to, `Your CAPRO verification code is ${code}.`);
+        await sendSmsCode(to, `Your AI Receptionist verification code is ${code}.`);
       },
     }),
 
     // Passkey / WebAuthn.
     passkey({
       rpID: RP_ID,
-      rpName: "CAPRO",
+      rpName: "AI Receptionist",
       origin: BASE_URL,
     }),
 

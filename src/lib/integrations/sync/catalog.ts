@@ -4,9 +4,9 @@ import { buildContext, getAdapter, invoke, recordError, clearError } from "../in
 import type { ExternalCatalogItem } from "../types";
 import type { Integration } from "@prisma/client";
 
-// ─── Catalog pull (POS → CAPRO) ─────────────────────────────────────────────
+// ─── Catalog pull (POS → app) ─────────────────────────────────────────────
 // The POS is authoritative for linked items: name, price and availability are
-// overwritten on every sync. Items created only in CAPRO are never touched.
+// overwritten on every sync. Items created only in the app are never touched.
 //
 // The failure modes here are destructive rather than merely annoying — a bad
 // sync can wipe a restaurant's menu or double it — so most of the code below is

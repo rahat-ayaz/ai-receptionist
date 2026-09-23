@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   if (URL_RE.test(input.trim())) {
     websiteUrl = input.trim();
     try {
-      const res = await fetch(websiteUrl, { headers: { "User-Agent": "CAPRO-Ingestion/1.0" } });
+      const res = await fetch(websiteUrl, { headers: { "User-Agent": "AI-Receptionist-Ingestion/1.0" } });
       rawContext = htmlToText(await res.text());
     } catch {
       return NextResponse.json({ error: "Could not fetch that URL." }, { status: 422 });

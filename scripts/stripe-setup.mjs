@@ -1,5 +1,11 @@
 // ════════════════════════════════════════════════════════════════════════════
-//  CAPRO — Stripe product/price provisioning
+//  AI Receptionist — Stripe product/price provisioning
+//
+//  NOTE: the `capro_tier` metadata key below is intentionally NOT renamed.
+//  It is the lookup key for products already created in Stripe. Rename it and
+//  this script stops finding them, creates a second set, and live
+//  subscriptions end up pointing at orphaned prices. The product *names* were
+//  rebranded; the key is an identifier and stays.
 //  Creates (idempotently) the 4 subscription products + monthly recurring prices
 //  in your Stripe account, then writes the price IDs back into .env.
 //
@@ -17,9 +23,9 @@ const ENV_PATH = join(ROOT, ".env");
 
 // Mirror of src/lib/plans.ts (kept inline so this plain-Node script needs no TS).
 const PLANS = [
-  { tier: "STARTER", name: "CAPRO Starter", price: 199.00, callCap: 400, env: "STRIPE_PRICE_STARTER" },
-  { tier: "PREMIUM", name: "CAPRO Growth", price: 449.00, callCap: 1000, env: "STRIPE_PRICE_PREMIUM" },
-  { tier: "PRO", name: "CAPRO Professional", price: 899.00, callCap: 2500, env: "STRIPE_PRICE_PRO" },
+  { tier: "STARTER", name: "AI Receptionist Starter", price: 199.00, callCap: 400, env: "STRIPE_PRICE_STARTER" },
+  { tier: "PREMIUM", name: "AI Receptionist Growth", price: 449.00, callCap: 1000, env: "STRIPE_PRICE_PREMIUM" },
+  { tier: "PRO", name: "AI Receptionist Professional", price: 899.00, callCap: 2500, env: "STRIPE_PRICE_PRO" },
 ];
 
 const key = process.env.STRIPE_SECRET_KEY;

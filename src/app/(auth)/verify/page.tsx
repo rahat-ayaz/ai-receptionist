@@ -160,7 +160,7 @@ function VerifyPageContent() {
           {phoneAlreadyRegistered && (
             <>
               <p className="mt-2 text-[var(--color-ink-dim)]">
-                This number is already linked to a CAPRO account. If it&apos;s yours, sign in with that
+                This number is already linked to an AI Receptionist account. If it&apos;s yours, sign in with that
                 account instead — if its trial has expired, you&apos;ll be taken straight to billing to
                 reactivate it.
               </p>

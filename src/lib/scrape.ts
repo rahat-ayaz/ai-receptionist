@@ -22,7 +22,7 @@ export function htmlToText(html: string): string {
 
 /** Fetch a URL and return its readable text. Throws on network failure. */
 export async function fetchUrlText(url: string): Promise<string> {
-  const res = await fetch(url, { headers: { "User-Agent": "CAPRO-Ingestion/1.0" } });
+  const res = await fetch(url, { headers: { "User-Agent": "AI-Receptionist-Ingestion/1.0" } });
   if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
   return htmlToText(await res.text());
 }

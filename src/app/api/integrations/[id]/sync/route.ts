@@ -6,7 +6,7 @@ import { pullCatalog } from "@/lib/integrations/sync/catalog";
 
 export const dynamic = "force-dynamic";
 
-/** POST /api/integrations/[id]/sync — pull the provider's catalog into CAPRO. */
+/** POST /api/integrations/[id]/sync — pull the provider's catalog into the app. */
 export async function POST(req: NextRequest, ctx: RouteContext<"/api/integrations/[id]/sync">) {
   const { id } = await ctx.params;
   const businessProfileId = await currentProfileId();

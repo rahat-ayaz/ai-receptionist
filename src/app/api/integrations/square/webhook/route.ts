@@ -9,7 +9,7 @@ export const runtime = "nodejs";
  * POST /api/integrations/square/webhook
  *
  * Receives Square event notifications so a menu edit in Square shows up in
- * CAPRO without waiting for the next scheduled sync.
+ * the app without waiting for the next scheduled sync.
  *
  * This endpoint is unauthenticated by nature — anyone can POST to it — so the
  * HMAC signature is the only thing standing between a stranger and our data.

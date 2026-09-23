@@ -36,7 +36,7 @@ function buildHeaders(
 ): Headers {
   const headers = new Headers({
     "content-type": "application/json",
-    "user-agent": "CAPRO-Integrations/1.0",
+    "user-agent": "AI-Receptionist-Integrations/1.0",
     "idempotency-key": idempotencyKey,
   });
 
@@ -48,6 +48,9 @@ function buildHeaders(
   }
 
   // Lets the receiver verify the payload really came from us.
+  // `x-capro-signature` is a wire contract, not branding: tenants' endpoints
+  // already verify this exact header name. Renaming it silently breaks every
+  // live generic-webhook integration, so it keeps the old spelling.
   if (secrets.hmacSecret) {
     const sig = createHmac("sha256", secrets.hmacSecret).update(body).digest("hex");
     headers.set("x-capro-signature", `sha256=${sig}`);
@@ -111,7 +114,7 @@ export const genericRestAdapter: IntegrationAdapter = {
     const cfg = ctx.config as GenericConfig;
     const result = await post(
       ctx,
-      { test: true, message: "CAPRO connection test", sentAt: new Date().toISOString() },
+      { test: true, message: "AI Receptionist connection test", sentAt: new Date().toISOString() },
       `test-${Date.now()}`,
     );
     if (!result.ok) return result;

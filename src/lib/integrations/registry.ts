@@ -53,7 +53,7 @@ export const PROVIDERS: Record<string, ProviderDescriptor> = {
     key: "square",
     label: "Square",
     blurb:
-      "Sync your Square catalog into CAPRO and send confirmed orders straight to Square as real tickets.",
+      "Sync your Square catalog in and send confirmed orders straight to Square as real tickets.",
     iconKey: "square",
     capabilities: ["oauth", "catalog.pull", "booking.push", "webhook.receive"],
     connectMode: "oauth",
@@ -76,7 +76,7 @@ export const PROVIDERS: Record<string, ProviderDescriptor> = {
         label: "Endpoint URL",
         type: "url",
         required: true,
-        placeholder: "https://example.com/hooks/capro",
+        placeholder: "https://example.com/hooks/ai-receptionist",
         help: "Must be HTTPS. Receives a POST with the booking envelope.",
       },
       {

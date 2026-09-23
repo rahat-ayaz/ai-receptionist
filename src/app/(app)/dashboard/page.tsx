@@ -135,7 +135,7 @@ export default async function DashboardPage({
       {billing === "success" && (
         <div className="mb-5 flex items-center gap-2.5 rounded-lg border border-emerald-400/40 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">
           <CheckCircle2 className="h-4.5 w-4.5 shrink-0" />
-          Subscription active — your plan is now live. Thanks for subscribing to CAPRO.
+          Subscription active — your plan is now live. Thanks for subscribing to AI Receptionist.
         </div>
       )}
 

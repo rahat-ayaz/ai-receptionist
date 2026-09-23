@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════════
-//  CAPRO — AI Automated Receptionist Platform
+//  AI Receptionist — Automated Call Answering Platform
 //  TorqAI Technologies Inc.  ·  PostgreSQL + Prisma ORM
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -41,7 +41,7 @@ model User {
   accounts Account[]
   passkeys Passkey[]
 
-  // ─── CAPRO relations ───
+  // ─── App relations ───
   businessProfile BusinessProfile?
   subscription    Subscription?
 

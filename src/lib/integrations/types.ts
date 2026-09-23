@@ -83,7 +83,7 @@ export interface BookingPushLineItem {
   qty: number;
   unitPrice: number;
   lineTotal: number;
-  /** Resolved from ExternalRef at enqueue time; null for CAPRO-only items. */
+  /** Resolved from ExternalRef at enqueue time; null for app-only items. */
   externalId: string | null;
 }
 
