@@ -1,0 +1,24 @@
+# ── AI Receptionist — voice bridge image (Cloud Run) ──────────────────────
+# Twilio Media Streams / ConversationRelay <-> Gemini Live. This is a
+# long-lived WebSocket server, which is precisely what Vercel could not host
+# and why the low-latency voice path was unreachable in production.
+FROM node:24-slim AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+# The bridge never touches Prisma (it calls the app's /api/voice/* routes), but
+# it shares this lockfile, and postinstall runs `prisma generate`.
+RUN npm ci --omit=dev
+
+FROM node:24-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+# The bridge already prefers PORT over VOICE_BRIDGE_PORT, which is exactly
+# Cloud Run's contract.
+ENV PORT=8080
+COPY --from=deps --chown=node:node /app/node_modules ./node_modules
+COPY --chown=node:node package.json ./
+COPY --chown=node:node scripts ./scripts
+USER node
+EXPOSE 8080
+CMD ["node", "scripts/voice-bridge.mjs"]

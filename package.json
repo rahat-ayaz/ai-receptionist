@@ -2,7 +2,7 @@
   "name": "ai-receptionist",
   "version": "1.0.0",
   "private": true,
-  "description": "AI Receptionist — automated call answering platform by TorqAI Technologies Inc.",
+  "description": "AI Receptionist \u2014 automated call answering platform by TorqAI Technologies Inc.",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && (prisma db push --accept-data-loss || echo 'Database sync bypassed or offline') && next build",
@@ -11,7 +11,8 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "build:container": "prisma generate && next build"
   },
   "dependencies": {
     "@better-auth/passkey": "^1.6.22",

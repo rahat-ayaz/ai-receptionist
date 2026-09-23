@@ -26,9 +26,15 @@ const WIDEST_OFFSET_MS = Math.max(...TIERS.map((t) => t.offsetMs));
 /**
  * GET /api/cron/reminders
  *
- * Sends booking reminders, then sweeps trial-expiry reminders. Both run from
- * this one route because Vercel Hobby allows only two cron entries and the
- * other is taken by /api/cron/integrations.
+ * Sends booking reminders, and by default also sweeps trial-expiry reminders.
+ * The two are bundled because Vercel Hobby allows only two cron entries and
+ * the other is taken by /api/cron/integrations.
+ *
+ * Set SWEEP_TRIALS_WITH_REMINDERS=false where the scheduler can run
+ * /api/cron/trial-reminders as its own job (Cloud Scheduler has no job limit).
+ * Leaving both enabled is not merely redundant: two sweeps running at once can
+ * each select the same not-yet-stamped user and both send, because a tier is
+ * stamped only after its message goes out.
  *
  * A tier fires once the booking would come due before the next run rather
  * than at its exact offset — see cron-cadence.ts. At most one reminder goes
@@ -99,14 +105,16 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Trials are swept in the same run; a failure there must still report the
-    // booking reminders that did go out.
-    let trials;
-    try {
-      trials = await runTrialReminders(now);
-    } catch (err) {
-      console.error("[cron:reminders] trial sweep failed:", err);
-      trials = { error: (err as Error).message };
+    // Trials are swept in the same run unless the scheduler owns that job; a
+    // failure there must still report the booking reminders that did go out.
+    let trials: unknown = { skipped: "SWEEP_TRIALS_WITH_REMINDERS=false" };
+    if (process.env.SWEEP_TRIALS_WITH_REMINDERS !== "false") {
+      try {
+        trials = await runTrialReminders(now);
+      } catch (err) {
+        console.error("[cron:reminders] trial sweep failed:", err);
+        trials = { error: (err as Error).message };
+      }
     }
 
     return NextResponse.json({

@@ -9,12 +9,19 @@ import { NextRequest, NextResponse } from "next/server";
  * Returns a 401 response when the request is not an authorized cron invocation,
  * or `null` when it may proceed.
  *
- * Accepts either `Authorization: Bearer $CRON_SECRET` (external schedulers,
- * curl, GitHub Actions) or Vercel's own `x-vercel-cron` header, which Vercel
- * sets on platform-scheduled invocations and strips from external traffic.
+ * Accepts `Authorization: Bearer $CRON_SECRET` — external schedulers, Cloud
+ * Scheduler, curl, GitHub Actions.
+ *
+ * Vercel's `x-vercel-cron` header is also accepted, but ONLY while actually
+ * running on Vercel. That header is trustworthy only because Vercel sets it on
+ * platform-scheduled invocations and strips it from inbound external traffic.
+ * Nothing else strips it: on Cloud Run, or any other host, anyone could send
+ * `x-vercel-cron: 1` and drive routes that place outbound calls and send SMS
+ * and email. So the bypass is gated on the VERCEL env var, which only the
+ * Vercel runtime sets.
  */
 export function requireCronAuth(req: NextRequest): NextResponse | null {
-  if (req.headers.get("x-vercel-cron")) return null;
+  if (process.env.VERCEL && req.headers.get("x-vercel-cron")) return null;
 
   const secret = process.env.CRON_SECRET;
   if (!secret) {
