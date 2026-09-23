@@ -3,6 +3,17 @@
 # them before running, e.g.  PROJECT_ID=my-proj ./deploy/setup-gcp.sh
 set -euo pipefail
 
+# gcloud refuses to run on Python 3.9, which is all macOS ships. A standalone
+# 3.12 lives in ~/.local-python (see deploy/README.md), and gcloud itself is a
+# local tarball install rather than a Homebrew cask — neither needs admin
+# rights. Override either path by exporting it beforehand.
+: "${CLOUDSDK_PYTHON:=$HOME/.local-python/python/bin/python3}"
+export CLOUDSDK_PYTHON
+if ! command -v gcloud >/dev/null 2>&1; then
+  [[ -x "$HOME/google-cloud-sdk/bin/gcloud" ]]     || { echo "gcloud not found — see deploy/README.md (Prerequisites)"; exit 1; }
+  PATH="$HOME/google-cloud-sdk/bin:$PATH"; export PATH
+fi
+
 : "${PROJECT_ID:?Set PROJECT_ID to your GCP project id}"
 # Montreal: TorqAI is a Canadian company and the tax engine is Canada-specific
 # (HST/QST), so tenant data stays in-country by default. Cloud Run, Cloud SQL

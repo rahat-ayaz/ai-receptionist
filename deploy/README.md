@@ -14,10 +14,37 @@ Docker installed locally**.
 
 ## Prerequisites
 
-```bash
-brew install --cask google-cloud-sdk
-brew install libpq cloud-sql-proxy        # only for the database migration
+There is no Homebrew on this machine, and installing it needs admin rights, so
+both tools are installed as local tarballs into `$HOME` instead. Nothing below
+requires `sudo`. `deploy/config.sh` finds them automatically.
 
+```bash
+# 1. gcloud itself
+curl -o /tmp/gcloud.tar.gz \
+  https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-darwin-arm.tar.gz
+tar -xzf /tmp/gcloud.tar.gz -C ~
+~/google-cloud-sdk/install.sh --quiet --usage-reporting=false
+
+# 2. A Python gcloud will accept. macOS ships 3.9; gcloud requires 3.10-3.14,
+#    and its own bundled interpreter cannot bootstrap itself on 3.9.
+URL=$(curl -sL https://api.github.com/repos/astral-sh/python-build-standalone/releases/latest \
+  | grep -o '"browser_download_url": *"[^"]*cpython-3\.12\.[^"]*aarch64-apple-darwin-install_only\.tar\.gz"' \
+  | grep -o 'https://[^"]*' | head -1)
+curl -sL -o /tmp/py312.tar.gz "$URL"
+mkdir -p ~/.local-python && tar -xzf /tmp/py312.tar.gz -C ~/.local-python
+
+export CLOUDSDK_PYTHON=$HOME/.local-python/python/bin/python3
+export PATH=$HOME/google-cloud-sdk/bin:$PATH
+```
+
+Add those last two exports to your shell profile — without `CLOUDSDK_PYTHON`
+every `gcloud` call fails with a Python 3.9 error.
+
+The database migration additionally needs `pg_dump` and `cloud-sql-proxy`,
+which do not have no-admin tarballs. Either install Homebrew for those two, or
+run `deploy/migrate-db.sh` from a machine that has them.
+
+```bash
 gcloud auth login                          # use printerspartscn@gmail.com
 gcloud projects create ai-receptionist-prod --name="AI Receptionist"
 export PROJECT_ID=ai-receptionist-prod
