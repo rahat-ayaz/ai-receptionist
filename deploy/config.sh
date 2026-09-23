@@ -47,8 +47,14 @@ retry() {
   local tries="${1}" delay="${2}"; shift 2
   local n=1 out rc
   while :; do
-    out="$("$@" 2>&1)"; rc=$?
-    [[ ${rc} -eq 0 ]] && { [[ -n "${out}" ]] && printf '%s\n' "${out}"; return 0; }
+    # `out=$(...) && rc=0 || rc=$?` rather than testing $? afterwards: under
+    # `set -e` a bare failing compound aborts the script, which swallowed the
+    # underlying error entirely the first time this was written.
+    out="$("$@" 2>&1)" && rc=0 || rc=$?
+    if [[ ${rc} -eq 0 ]]; then
+      if [[ -n "${out}" ]]; then printf '%s\n' "${out}"; fi
+      return 0
+    fi
     if ! grep -qiE "${TRANSIENT}" <<<"${out}"; then
       printf '%s\n' "${out}" >&2
       echo "   not a transient failure — not retrying" >&2

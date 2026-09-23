@@ -23,8 +23,15 @@ gcloud artifacts repositories describe "${REPO}" --location "${REGION}" >/dev/nu
 
 echo "== Cloud SQL (Postgres)"
 if ! gcloud sql instances describe "${SQL_INSTANCE}" >/dev/null 2>&1; then
-  # No public IP: Cloud Run reaches this over the Cloud SQL connector's unix
-  # socket, so the instance never needs to be exposed to the internet.
+  # An instance must have at least one of public IP, private IP or PSC —
+  # --no-assign-ip on its own is rejected outright. Public IP is taken here
+  # because private IP needs a VPC with private services access plus a VPC
+  # connector on Cloud Run, which is a lot of moving parts for this stage.
+  #
+  # A public IP is not open access: no authorized networks are added, so the
+  # only way in is the Cloud SQL connector or Auth Proxy, both of which
+  # authenticate with IAM over TLS. Add --network and switch to private IP if
+  # this ever needs to be unreachable from the internet at the IP level.
   retry 3 30 gcloud sql instances create "${SQL_INSTANCE}" \
     --database-version=POSTGRES_17 \
     --edition="${SQL_EDITION}" \
@@ -32,7 +39,7 @@ if ! gcloud sql instances describe "${SQL_INSTANCE}" >/dev/null 2>&1; then
     --region="${REGION}" \
     --storage-auto-increase \
     --backup-start-time=07:00 \
-    --no-assign-ip
+    --authorized-networks=""
 else
   echo "   instance ${SQL_INSTANCE} already exists"
 fi
