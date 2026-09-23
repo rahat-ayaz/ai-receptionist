@@ -15,7 +15,7 @@ if ! command -v gcloud >/dev/null 2>&1; then
 fi
 
 : "${PROJECT_ID:?Set PROJECT_ID to your GCP project id}"
-# Montreal: TorqAI is a Canadian company and the tax engine is Canada-specific
+# Montreal: this is a Canadian business and the tax engine is Canada-specific
 # (HST/QST), so tenant data stays in-country by default. Cloud Run, Cloud SQL
 # and Cloud Scheduler are all available here.
 : "${REGION:=northamerica-northeast1}"

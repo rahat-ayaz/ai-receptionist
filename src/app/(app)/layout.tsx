@@ -140,7 +140,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </div>
           )}
           <UserMenu name={session.user.name} email={session.user.email} />
-          <p className="mt-2 px-1 text-[10px] text-[var(--color-ink-faint)]">AI Receptionist v1.0 · TorqAI</p>
+          <p className="mt-2 px-1 text-[10px] text-[var(--color-ink-faint)]">AI Receptionist v1.0 · PPE-AI</p>
         </div>
       </aside>
 

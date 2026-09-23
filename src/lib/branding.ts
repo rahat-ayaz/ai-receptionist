@@ -103,7 +103,7 @@ export function renderBrandedEmail(opts: {
         </td></tr>
         <tr><td style="height:4px;background:${accent};"></td></tr>
         <tr><td style="padding:16px 28px;background:#fafafc;font-size:12px;color:#8a8f9c;">
-          Sent by ${esc(opts.businessName)} · Powered by <a href="https://torqai.ca" style="color:${primary};text-decoration:none;">TorqAI Technologies Inc.</a>
+          Sent by ${esc(opts.businessName)} · Powered by <a href="https://printersparts.com" style="color:${primary};text-decoration:none;">PPE-AI</a>
         </td></tr>
       </table>
     </td></tr>

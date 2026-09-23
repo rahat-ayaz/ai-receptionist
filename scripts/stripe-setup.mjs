@@ -1,11 +1,10 @@
 // ════════════════════════════════════════════════════════════════════════════
 //  AI Receptionist — Stripe product/price provisioning
 //
-//  NOTE: the `capro_tier` metadata key below is intentionally NOT renamed.
-//  It is the lookup key for products already created in Stripe. Rename it and
-//  this script stops finding them, creates a second set, and live
-//  subscriptions end up pointing at orphaned prices. The product *names* were
-//  rebranded; the key is an identifier and stays.
+//  `plan_tier` is the lookup key for products this script has already
+//  created. Changing it makes the script stop finding them and provision a
+//  duplicate set, leaving existing subscriptions on orphaned prices — so it is
+//  safe to change only while no products exist yet.
 //  Creates (idempotently) the 4 subscription products + monthly recurring prices
 //  in your Stripe account, then writes the price IDs back into .env.
 //
@@ -42,11 +41,11 @@ const stripe = new Stripe(key);
 async function findProduct(tier) {
   // Prefer search (test mode supports it); fall back to listing.
   try {
-    const res = await stripe.products.search({ query: `metadata['capro_tier']:'${tier}'` });
+    const res = await stripe.products.search({ query: `metadata['plan_tier']:'${tier}'` });
     if (res.data[0]) return res.data[0];
   } catch {
     const all = await stripe.products.list({ active: true, limit: 100 });
-    const hit = all.data.find((p) => p.metadata?.capro_tier === tier);
+    const hit = all.data.find((p) => p.metadata?.plan_tier === tier);
     if (hit) return hit;
   }
   return null;
@@ -57,7 +56,7 @@ async function ensureProduct(plan) {
   if (existing) return existing;
   return stripe.products.create({
     name: plan.name,
-    metadata: { capro_tier: plan.tier },
+    metadata: { plan_tier: plan.tier },
     description: `${plan.callCap} calls / month`,
   });
 }
@@ -74,7 +73,7 @@ async function ensurePrice(product, plan) {
     currency: "usd",
     unit_amount: amount,
     recurring: { interval: "month" },
-    metadata: { capro_tier: plan.tier },
+    metadata: { plan_tier: plan.tier },
   });
 }
 

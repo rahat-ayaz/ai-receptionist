@@ -140,7 +140,7 @@ export function PricingCards({ currentTier }: { currentTier?: PlanTier | null })
                 </button>
               ) : (
                 <a
-                  href="mailto:sales@torqai.ca"
+                  href="mailto:sales@printersparts.com"
                   className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-slate-line)] px-4 py-2.5 text-sm font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-gold)]/60"
                 >
                   Contact Sales

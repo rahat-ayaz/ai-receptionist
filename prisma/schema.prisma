@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════════════════
 //  AI Receptionist — Automated Call Answering Platform
-//  TorqAI Technologies Inc.  ·  PostgreSQL + Prisma ORM
+//  PPE-AI  ·  PostgreSQL + Prisma ORM
 // ════════════════════════════════════════════════════════════════════════════
 
 generator client {

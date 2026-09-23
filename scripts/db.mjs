@@ -13,15 +13,14 @@ import { dirname, join } from "node:path";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_DIR = join(ROOT, ".pgdata");
-// Local embedded-Postgres identity, deliberately unchanged by the rebrand:
-// renaming it orphans any existing .pgdata directory, so every developer's
-// local database would silently come up empty.
-const DB_NAME = "capro";
+// Local embedded-Postgres identity. Changing it orphans any existing .pgdata
+// directory, so a developer carrying one over must delete it and re-init.
+const DB_NAME = "airecept";
 
 const pg = new EmbeddedPostgres({
   databaseDir: DATA_DIR,
-  user: "capro",
-  password: "capro",
+  user: "airecept",
+  password: "airecept",
   port: 5432,
   persistent: true,
 });
@@ -62,7 +61,7 @@ if (mode === "init") {
 await ensureCluster();
 await pg.start();
 await ensureDatabase();
-console.log("[db] PostgreSQL ready on postgresql://capro:capro@localhost:5432/capro");
+console.log("[db] PostgreSQL ready on postgresql://airecept:airecept@localhost:5432/airecept");
 
 const shutdown = async () => {
   console.log("\n[db] stopping PostgreSQL …");

@@ -7,9 +7,9 @@ import { squareBaseUrl, squareCredentials } from "@/lib/integrations/adapters/sq
 
 export const dynamic = "force-dynamic";
 
-// Kept under the old name: renaming it would drop the state cookie for any
-// OAuth flow already in flight at deploy time, failing the callback.
-export const OAUTH_STATE_COOKIE = "capro_oauth_state";
+// Renaming this drops the state cookie for any OAuth flow in flight at deploy
+// time, failing that callback. Harmless on a deployment with no live tenants.
+export const OAUTH_STATE_COOKIE = "airecept_oauth_state";
 const STATE_TTL_MS = 10 * 60_000;
 
 // Only what we actually use: read the catalog, read/write orders, and read the

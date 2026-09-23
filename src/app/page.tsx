@@ -90,7 +90,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="border-t border-[var(--color-slate-line)] py-8 text-center text-sm text-[var(--color-ink-faint)]">
-        © {new Date().getFullYear()} TorqAI Technologies Inc. · torqai.ca
+        © {new Date().getFullYear()} PPE-AI · printersparts.com
       </footer>
     </main>
   );

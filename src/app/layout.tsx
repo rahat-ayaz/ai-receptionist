@@ -5,9 +5,9 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "AI Receptionist · Automated Call Answering — TorqAI",
+  title: "AI Receptionist · Automated Call Answering",
   description:
-    "AI Receptionist by TorqAI Technologies — enterprise-grade call answering that picks up every time, 24/7.",
+    "AI Receptionist by PPE-AI — enterprise-grade call answering that picks up every time, 24/7.",
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",

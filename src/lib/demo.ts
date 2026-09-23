@@ -17,7 +17,7 @@ export const DEMO_CALLS: CallRow[] = [
     direction: "INBOUND",
     recordingUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
     transcript: [
-      { role: "agent", text: "Thank you for calling TorqAI. How can I help you today?", at: "" },
+      { role: "agent", text: "Thank you for calling Northside Dental. How can I help you today?", at: "" },
       { role: "caller", text: "Hi, I'm comparing receptionist tools — what does your Pro plan include?", at: "" },
       { role: "agent", text: "Pro is $159.95 a month and covers 300 calls, with overage at 75 cents each. Want me to text you a demo link?", at: "" },
       { role: "caller", text: "Yes please, that'd be great.", at: "" },
@@ -83,7 +83,7 @@ export const DEMO_CALLS: CallRow[] = [
 ];
 
 export const DEMO_STATS = {
-  businessName: "TorqAI Technologies (Demo)",
+  businessName: "Northside Dental (Demo)",
   totalCalls: DEMO_CALLS.length,
   avgDuration: Math.round(DEMO_CALLS.reduce((a, c) => a + c.durationSeconds, 0) / DEMO_CALLS.length),
   spamPct: Math.round((DEMO_CALLS.filter((c) => c.isSpam).length / DEMO_CALLS.length) * 100),

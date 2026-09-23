@@ -2,7 +2,7 @@
   "name": "ai-receptionist",
   "version": "1.0.0",
   "private": true,
-  "description": "AI Receptionist \u2014 automated call answering platform by TorqAI Technologies Inc.",
+  "description": "AI Receptionist \u2014 automated call answering platform by PPE-AI.",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && (prisma db push --accept-data-loss || echo 'Database sync bypassed or offline') && next build",

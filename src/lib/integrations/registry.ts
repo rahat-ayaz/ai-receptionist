@@ -107,7 +107,7 @@ export const PROVIDERS: Record<string, ProviderDescriptor> = {
         type: "secret",
         required: false,
         secret: true,
-        help: "When set, requests carry X-CAPRO-Signature: sha256=<hmac of the raw body>.",
+        help: "When set, requests carry X-AIRecept-Signature: sha256=<hmac of the raw body>.",
       },
     ],
   },

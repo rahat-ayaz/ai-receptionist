@@ -48,12 +48,13 @@ function buildHeaders(
   }
 
   // Lets the receiver verify the payload really came from us.
-  // `x-capro-signature` is a wire contract, not branding: tenants' endpoints
-  // already verify this exact header name. Renaming it silently breaks every
-  // live generic-webhook integration, so it keeps the old spelling.
+  // This header name is a wire contract: tenants configure their endpoint to
+  // verify this exact name against the HMAC. Renaming it silently breaks every
+  // generic-webhook integration already in the field, so change it only while
+  // none exist — and keep registry.ts's help text in step.
   if (secrets.hmacSecret) {
     const sig = createHmac("sha256", secrets.hmacSecret).update(body).digest("hex");
-    headers.set("x-capro-signature", `sha256=${sig}`);
+    headers.set("x-airecept-signature", `sha256=${sig}`);
   }
 
   return headers;

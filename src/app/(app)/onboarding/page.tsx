@@ -83,7 +83,7 @@ export default function OnboardingPage() {
             <input
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
-              placeholder="TorqAI Technologies"
+              placeholder="Northside Dental"
               className="ob-input"
             />
           </label>

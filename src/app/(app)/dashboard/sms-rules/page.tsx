@@ -113,7 +113,7 @@ export default function SmsRulesPage() {
             <input
               value={template}
               onChange={(e) => setTemplate(e.target.value)}
-              placeholder="Book here: https://torqai.ca/book"
+              placeholder="Book here: https://example.com/book"
               className="cap-input"
             />
           </Field>
