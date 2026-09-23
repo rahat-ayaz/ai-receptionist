@@ -17,7 +17,7 @@ gcloud services enable \
 
 echo "== Artifact Registry"
 gcloud artifacts repositories describe "${REPO}" --location "${REGION}" >/dev/null 2>&1 \
-  || gcloud artifacts repositories create "${REPO}" \
+  || retry 5 20 gcloud artifacts repositories create "${REPO}" \
        --repository-format=docker --location "${REGION}" \
        --description="AI Receptionist container images"
 
@@ -25,7 +25,7 @@ echo "== Cloud SQL (Postgres)"
 if ! gcloud sql instances describe "${SQL_INSTANCE}" >/dev/null 2>&1; then
   # No public IP: Cloud Run reaches this over the Cloud SQL connector's unix
   # socket, so the instance never needs to be exposed to the internet.
-  gcloud sql instances create "${SQL_INSTANCE}" \
+  retry 3 30 gcloud sql instances create "${SQL_INSTANCE}" \
     --database-version=POSTGRES_17 \
     --tier="${SQL_TIER}" \
     --region="${REGION}" \
@@ -54,7 +54,7 @@ fi
 
 echo "== runtime service account"
 gcloud iam service-accounts describe "${RUNTIME_SA_EMAIL}" >/dev/null 2>&1 \
-  || gcloud iam service-accounts create "${RUNTIME_SA}" \
+  || retry 5 15 gcloud iam service-accounts create "${RUNTIME_SA}" \
        --display-name="AI Receptionist Cloud Run runtime"
 
 for role in roles/cloudsql.client roles/secretmanager.secretAccessor; do

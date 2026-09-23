@@ -31,6 +31,19 @@ fi
 export PROJECT_ID REGION REPO SQL_INSTANCE SQL_TIER SQL_DB SQL_USER \
        APP_SERVICE BRIDGE_SERVICE RUNTIME_SA
 
+# Freshly enabled APIs are not usable the instant `services enable` returns —
+# the first call against one often fails IAM_PERMISSION_DENIED while the service
+# agent propagates. Retry those rather than making the operator re-run.
+retry() {
+  local tries="${1}" delay="${2}"; shift 2
+  local n=1
+  until "$@"; do
+    if (( n >= tries )); then return 1; fi
+    echo "   attempt ${n}/${tries} failed; retrying in ${delay}s"
+    sleep "${delay}"; n=$(( n + 1 ))
+  done
+}
+
 IMAGE_BASE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
 SQL_CONN="${PROJECT_ID}:${REGION}:${SQL_INSTANCE}"
 RUNTIME_SA_EMAIL="${RUNTIME_SA}@${PROJECT_ID}.iam.gserviceaccount.com"
