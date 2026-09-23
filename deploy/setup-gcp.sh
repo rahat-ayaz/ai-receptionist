@@ -28,18 +28,20 @@ if ! gcloud sql instances describe "${SQL_INSTANCE}" >/dev/null 2>&1; then
   # because private IP needs a VPC with private services access plus a VPC
   # connector on Cloud Run, which is a lot of moving parts for this stage.
   #
-  # A public IP is not open access: no authorized networks are added, so the
-  # only way in is the Cloud SQL connector or Auth Proxy, both of which
-  # authenticate with IAM over TLS. Add --network and switch to private IP if
-  # this ever needs to be unreachable from the internet at the IP level.
+  # Connectivity is left at the default, which is a public IP with NO
+  # authorized networks — deliberately, and it is not open access: with an
+  # empty allowlist the only routes in are the Cloud SQL connector and Auth
+  # Proxy, both IAM-authenticated over TLS. Passing --authorized-networks=""
+  # to say this explicitly is rejected ("not enough args"), so the absence of
+  # the flag is the configuration. Add --network and switch to private IP if
+  # it ever needs to be unreachable at the IP level.
   retry 3 30 gcloud sql instances create "${SQL_INSTANCE}" \
     --database-version=POSTGRES_17 \
     --edition="${SQL_EDITION}" \
     --tier="${SQL_TIER}" \
     --region="${REGION}" \
     --storage-auto-increase \
-    --backup-start-time=07:00 \
-    --authorized-networks=""
+    --backup-start-time=07:00
 else
   echo "   instance ${SQL_INSTANCE} already exists"
 fi
