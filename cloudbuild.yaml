@@ -1,0 +1,47 @@
+# Cloud Build pipeline for pushes to main.
+#
+# This only rolls a new image. It deliberately does NOT pass --set-secrets or
+# --set-env-vars: the service's configuration is established once by
+# deploy/deploy-app.sh and then owned by the service. If CI restated that
+# config on every push, any later change made with `gcloud run services
+# update` would be silently reverted by the next commit.
+#
+# It also does not touch the database. Schema changes are applied deliberately
+# with deploy/init-schema.sh, never as a side effect of a deploy — an automatic
+# `prisma db push` on a production database is a data-loss risk.
+substitutions:
+  _REGION: northamerica-northeast1
+  _REPO: app
+  _SERVICE: ai-receptionist
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8   # next build is CPU-bound; the default is slow
+
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:latest'
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:latest'
+      - '.'
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - services
+      - update
+      - '${_SERVICE}'
+      - '--region=${_REGION}'
+      - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA'
+
+timeout: 1800s
