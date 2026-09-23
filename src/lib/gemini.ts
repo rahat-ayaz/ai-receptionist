@@ -28,7 +28,17 @@ export const GEMINI_TTS_FALLBACK_MODEL =
 const PRIMARY_MODEL_TIMEOUT_MS = 5000;
 // Audio generation is slower than text — a ~2.5s render is normal — so it gets
 // its own ceiling rather than the text path's tighter one.
-const TTS_TIMEOUT_MS = 9000;
+//
+// The ceiling is a budget for the WHOLE retry chain, not per attempt. Serverless
+// hosts cap how long a function may run (Vercel Hobby around 10s), and three
+// attempts each allowed 9s would blow that: the platform kills the function
+// mid-chain, so the caller waits the full limit and still gets nothing. Keep
+// TTS_BUDGET_MS under the host's function limit — raise it via env on a host
+// with no such cap, such as Cloud Run.
+const TTS_BUDGET_MS = Number(process.env.GEMINI_TTS_BUDGET_MS) || 8500;
+// Below this there is no point starting another attempt; spend what is left
+// letting the current one finish instead.
+const TTS_MIN_ATTEMPT_MS = 1500;
 const TTS_RETRY_DELAY_MS = 250;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -77,8 +87,13 @@ function pcmToWav(pcm: Buffer, sampleRate = 24000, channels = 1, bits = 16): Buf
   return Buffer.concat([header, pcm]);
 }
 
-/** One synthesis attempt against a named model, capped by TTS_TIMEOUT_MS. */
-async function ttsAttempt(model: string, text: string, voiceName: string): Promise<Buffer> {
+/** One synthesis attempt against a named model, capped at `budgetMs`. */
+async function ttsAttempt(
+  model: string,
+  text: string,
+  voiceName: string,
+  budgetMs: number,
+): Promise<Buffer> {
   const res = await withTimeout(
     gemini.models.generateContent({
       model,
@@ -88,7 +103,7 @@ async function ttsAttempt(model: string, text: string, voiceName: string): Promi
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
       },
     }),
-    TTS_TIMEOUT_MS,
+    budgetMs,
   );
   const data = res.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
   if (!data) throw new Error("No audio returned from Gemini TTS");
@@ -107,11 +122,17 @@ async function ttsAttempt(model: string, text: string, voiceName: string): Promi
  */
 export async function geminiTts(text: string, voiceName: string): Promise<Buffer> {
   const attempts = [GEMINI_TTS_MODEL, GEMINI_TTS_MODEL, GEMINI_TTS_FALLBACK_MODEL];
-  let lastErr: unknown;
+  const deadline = Date.now() + TTS_BUDGET_MS;
+  let lastErr: unknown = new Error("TTS budget exhausted before any attempt");
 
   for (let i = 0; i < attempts.length; i++) {
+    const remaining = deadline - Date.now();
+    if (remaining < TTS_MIN_ATTEMPT_MS) {
+      console.warn(`[gemini] TTS budget spent after ${i} attempt(s); giving up`);
+      break;
+    }
     try {
-      return await ttsAttempt(attempts[i], text, voiceName);
+      return await ttsAttempt(attempts[i], text, voiceName, remaining);
     } catch (err) {
       lastErr = err;
       if (i === attempts.length - 1) break;
