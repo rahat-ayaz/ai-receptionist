@@ -8,14 +8,20 @@ export const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? ""
 // defaults track the 3.x generation. The fallback absorbs 429/503 spikes.
 export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.1-flash-lite";
-export const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || "gemini-3.1-flash-tts-preview";
-// The TTS models are preview-tier and shed load with 503 UNAVAILABLE under
-// demand spikes. On a live call that surfaces as dead air: Twilio <Play> gets
-// a 502 and plays nothing, the Gather times out, and the caller hears silence.
-// The greeting hides it — its text never changes, so Twilio serves it from its
-// own URL cache — while every generated reply is a fresh URL and fails live.
+// TTS runs on 2.5 by design, not as a downgrade. gemini-3.1-flash-tts-preview
+// returned 503 UNAVAILABLE on every probe across five weeks while 2.5 answered
+// every time, so the newer preview model is the fallback rather than the
+// primary. Revisit when 3.x TTS leaves preview and actually serves traffic.
+//
+// A TTS failure is dead air on a live call: Twilio <Play> gets a 502 from
+// /api/tts and plays nothing, the Gather times out, and the caller hears
+// silence. The greeting masks it — its text never changes, so Twilio serves it
+// from its own URL cache — while every generated reply is a fresh URL that has
+// to be synthesized live, so only the replies fail.
+export const GEMINI_TTS_MODEL =
+  process.env.GEMINI_TTS_MODEL || "gemini-2.5-flash-preview-tts";
 export const GEMINI_TTS_FALLBACK_MODEL =
-  process.env.GEMINI_TTS_FALLBACK_MODEL || "gemini-2.5-flash-preview-tts";
+  process.env.GEMINI_TTS_FALLBACK_MODEL || "gemini-3.1-flash-tts-preview";
 
 // Overloaded models can hang rather than fail — cap the primary attempt so
 // callers (and Twilio's webhook timeout) never wait on a stuck request.
@@ -71,7 +77,7 @@ function pcmToWav(pcm: Buffer, sampleRate = 24000, channels = 1, bits = 16): Buf
   return Buffer.concat([header, pcm]);
 }
 
-/** Synthesize `text` with a Gemini voice; returns a playable WAV buffer. */
+/** One synthesis attempt against a named model, capped by TTS_TIMEOUT_MS. */
 async function ttsAttempt(model: string, text: string, voiceName: string): Promise<Buffer> {
   const res = await withTimeout(
     gemini.models.generateContent({
@@ -92,11 +98,12 @@ async function ttsAttempt(model: string, text: string, voiceName: string): Promi
 /**
  * Synthesize `text` with a Gemini voice; returns a playable WAV buffer.
  *
- * Tries the primary model twice before switching models: a 503 here is
- * capacity shedding on a single request, not a model that is down, so an
- * immediate second attempt usually lands. Only then does it change models,
- * because the fallback is a different voice generation and may render the
- * same voice name slightly differently mid-call.
+ * Attempts the primary twice, then the fallback. The second attempt on the
+ * same model is cheap insurance against a genuine one-off spike; it is not
+ * what saves us when a model is simply not serving, which is why the third
+ * attempt changes models. Switching is last because the two models are
+ * different voice generations and can render the same voice name slightly
+ * differently — a shift the caller would hear mid-call.
  */
 export async function geminiTts(text: string, voiceName: string): Promise<Buffer> {
   const attempts = [GEMINI_TTS_MODEL, GEMINI_TTS_MODEL, GEMINI_TTS_FALLBACK_MODEL];
